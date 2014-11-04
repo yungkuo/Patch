@@ -105,7 +105,7 @@ plt.legend(bbox_to_anchor=(0.8, 1.2), loc=2, borderaxespad=0.)
 plt.show()
 plt.title('Averaged Background of ROI')
 
-bg_smooth=smooth.movingaverage(bg, frame/10)
+bg_smooth=smooth.moving_average(bg, frame/10)
 
 plt.plot(bg_smooth, 'r', label="Smoothen BGND")
 plt.xlabel('Frame')
@@ -113,7 +113,7 @@ plt.legend(bbox_to_anchor=(0.8, 1.2), loc=2, borderaxespad=0.)
 
 mov_bg_cr=mov-np.tile(bg_smooth[:,newaxis,newaxis], (1,nrow,ncol))  # bgnd corrected 3d movie
 mov_bg_cr1 = np.sum(np.sum(mov_bg_cr, axis=1), axis=1)/(ncol*nrow)  # bgnd corrected avg intensity
-mov_pb=smooth.movingaverage(mov_bg_cr1, frame/10)   # photobleaching
+mov_pb=smooth.moving_average(mov_bg_cr1, frame/10)   # photobleaching
 
 pb_constant=np.polyfit(t,mov_pb, 1)
 pbleach=np.polyval(pb_constant,t)

@@ -72,7 +72,7 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     
     
     axes_6 = subplot(G[1, 2])
-    axes_6.plot(filted_avg)
+    axes_6.bar(filted_avg)
     axes_6.set_title('Averaged Sigal over multiple cycle')
 
     axes_7 = subplot(G[2, 2])

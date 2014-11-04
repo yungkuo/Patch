@@ -7,7 +7,7 @@ Created on Sun Sep 21 10:31:06 2014
 import numpy as np
 import matplotlib.pyplot as plt
 
-def movingaverage(vector, span):
+def movingaverage(vector, span):    # bad
     
     if span==2:
         print("Your moving average span is 2" )
@@ -35,4 +35,23 @@ def movingaverage(vector, span):
             mvavg[i]=np.sum(vector[i-hf_span:i+hf_span+1])/(hf_span*2+1)    
 
     return mvavg
-    
+
+def moving_average(x, n, type='simple'):   # good
+    """
+    compute an n period moving average.
+
+    type is 'simple' | 'exponential'
+
+    """
+    x = np.asarray(x)
+    if type=='simple':
+        weights = np.ones(n)
+    else:
+        weights = np.exp(np.linspace(-1., 0., n))
+
+    weights /= weights.sum()  # weights = weights / weights.sum(), normalization
+
+
+    a =  np.convolve(x, weights, mode='full')[:len(x)]  # full means full convolution, return N+M-1 element
+    a[:n] = a[n]  # padding
+    return a
