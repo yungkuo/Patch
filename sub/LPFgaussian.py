@@ -17,7 +17,7 @@ for i in range((npoint)):
     
     fig= plt.figure()    
     ax=plt.subplot(111)
-    plt.plot(spot_intensity[:,i], 'c', label="Original" )
+    plt.plot(spot_intensity[:,i], '-o' 'c', label="Original" )
     plt.plot(LPF_G1d[:,i], 'm', label="LPF filtered" )
     plt.plot(HPF[:,i], 'g', label="HP component" )
     ax.xaxis.set_major_locator(MultipleLocator(4))

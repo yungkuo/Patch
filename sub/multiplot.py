@@ -12,10 +12,11 @@ import matplotlib.gridspec as gridspec
 
 
 
-def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filted_avg, t, binNum):
+def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filted_avg, t, binNum, rising, staying, falling, Rdiff, Sdiff, Fdiff):
     frame=len(intensity)
-    G = gridspec.GridSpec(3, 3)
-    fig =figure(figsize=(13, 9))
+    G = gridspec.GridSpec(3, 4)
+    fig =figure(figsize=(18, 9))
+    
     axes_0 = subplot(G[0, 0])    
     axes_0.imshow(refimg, cmap=cm.Greys_r, vmin=refimg.min(), vmax=refimg.max())
     axes_0.plot(pts[1], pts[0], 'ro')
@@ -25,7 +26,7 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_0.set_ylim([nrow,0])
     
     
-    axes_1 = subplot(G[0, 1:])
+    axes_1 = subplot(G[0, 1:3]) 
     axes_1.plot(t, intensity, color='b')
     thresh_line=np.ones(frame)*threshold
     axes_1.plot(t, thresh_line, color='r')
@@ -33,6 +34,7 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_1.xaxis.set_label_coords(1.05, -0.025)
 
     axes_1.set_title("Intensity trajectory")
+    
     
     axes_2 = subplot(G[1, 0])
     Von=sortedI[:frame/2]
@@ -72,7 +74,8 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     
     
     axes_6 = subplot(G[1, 2])
-    axes_6.bar(filted_avg)
+
+    axes_6.plot(filted_avg, '-o')
     axes_6.set_title('Averaged Sigal over multiple cycle')
 
     axes_7 = subplot(G[2, 2])
@@ -106,7 +109,37 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_7.text(-0.1, -0.05, 'Odd /Even Gaussian ratio is %f ' % oe_ratio)
     #axes_7.legend()
     #axes_7.show()        
+    axes_8 = subplot(G[0, 3])     
+    maxp=max(max(rising), max(staying), max(falling))
+    hist_range=(-maxp, maxp)
+    nr, binss, patches = axes_8.hist(rising, binNum, range=hist_range, color='b', normed=True, alpha=0.3, label='rising')  
+    ns, binss, patches = axes_8.hist(staying, binNum, range=hist_range, color='r', normed=True, alpha=0.3, label='staying')  
+    nf, binsf, patches = axes_8.hist(falling, binNum, range=hist_range, color='g', normed=True, alpha=0.5, label='falling')  
+    r_mean=np.mean(rising);  s_mean=np.mean(staying); f_mean=np.mean(falling)
+    r_std=np.std(rising);  s_std=np.std(staying); f_std=np.std(falling)
     
+    boxtext= """$\mu_r$ = %.2f, $\sigma_r = %.2f $ 
+    $\mu_s$ = %.2f, $\sigma_s$ = %.2f
+    $\mu_f$ = %.2f, $\sigma_f$ = %.2f"""  % (r_mean, r_std, s_mean, s_std, f_mean, f_std)
+    
+    props = dict(boxstyle='round, pad=1', facecolor='white', edgecolor='black')
+    axes_8.text(0.8, 0.9, boxtext, ha='left', va='center', multialignment="left", transform=axes_8.transAxes, bbox=props)
+    
+    axes_9 = subplot(G[1, 3])     
+    maxp=max(max(Rdiff), max(Sdiff), max(Fdiff))
+    hist_range=(-maxp, maxp)
+    nr, binss, patches = axes_9.hist(Rdiff, binNum, range=hist_range, color='b', normed=True, alpha=0.3, label='rising')  
+    ns, binss, patches = axes_9.hist(Sdiff, binNum, range=hist_range, color='r', normed=True, alpha=0.3, label='staying')  
+    nf, binsf, patches = axes_9.hist(Fdiff, binNum, range=hist_range, color='g', normed=True, alpha=0.5, label='falling')  
+    R_mean=np.mean(Rdiff);  S_mean=np.mean(Sdiff); F_mean=np.mean(Fdiff)
+    R_std=np.std(Rdiff);  S_std=np.std(Sdiff); F_std=np.std(Fdiff)
+    
+    boxtext2= """$\mu_r$ = %.2f, $\sigma_r = %.2f $ 
+    $\mu_s$ = %.2f, $\sigma_s$ = %.2f
+    $\mu_f$ = %.2f, $\sigma_f$ = %.2f"""  % (R_mean, R_std, S_mean, S_std, F_mean, F_std)
+    
+    #props = dict(boxstyle='round, pad=1', facecolor='white', edgecolor='black')
+    axes_9.text(0.8, 0.9, boxtext2, ha='left', va='center', multialignment="left", transform=axes_9.transAxes, bbox=props)
     return oe_ratio 
 
 def gaussian(A, x, mu, sigma):

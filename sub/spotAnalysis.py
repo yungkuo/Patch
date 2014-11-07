@@ -11,7 +11,24 @@ from scipy.optimize import curve_fit, leastsq
 from scipy import asarray as ar,exp
 import matplotlib.gridspec as gridspec
 
-
+def rf_selective_diff(curve, rp, sp, fp): # rising, falling, staying phase selective difference
+    dF=np.diff(curve)
+    avg=np.mean(curve)
+    rising=[]
+    staying=[]
+    falling=[]
+    for i in rp:
+        rising.append(dF[i])
+    
+    for i in fp:
+        falling.append(dF[i])
+        
+    for i in sp:
+        staying.append(dF[i])
+    
+    
+    return rising/avg,  staying/avg, falling/avg
+    
 
 def avg_period(t, signal , period, threshold):
     result=np.zeros((period))
@@ -33,20 +50,78 @@ def avg_period(t, signal , period, threshold):
     return result, dFF, np.array(sortedI)
 
     
-def threshold_avgperiod(threshold, signal, period):
+def threshold_avgperiod(threshold, signal, period, rp, sp, fp):
     nbin=np.zeros((period))
     result=np.zeros((period))
     F=np.zeros((2))
+    
+    frac=[]    
+    selected_diff=[]
+    
+    rsf_index=[] # whether rising, staying, falling phase
+    selected_rsf=[]
     for i in range(len(signal)):
         if signal[i] > threshold:
+            # 1st role: calculate average dF/F
             k=int(mod(i,period))
             result[k]=result[k]+signal[i]
             nbin[k]=nbin[k]+1
+            
+            # 2nd role: to stitch above thresholded fraction
+            frac.append(signal[i])
+            if i in rp: # if i is in rising phase
+                rsf_index.append(1)
+            elif i in sp:
+                rsf_index.append(0)
+            elif i in fp:
+                rsf_index.append(-1)
+                
+            #index.append[i]
+        else:
+            if i != 0 and 1:
+                if signal[i-1] > threshold and signal[i-2] > threshold:
+                    selected_diff.append(np.diff(frac))
+                    selected_rsf.append(rsf_index[:-1])
+                    #zipped=zip(np.diff(frac), rsf_index[:-1])
+                    #selected_diff.append(zipped)
+                    frac=[]
+                    rsf_index=[]
+                else:
+                    frac=[]
+                    rsf_index=[]
+                        
+    #value=[]
+    #index=[]
+    #for i in range(len(selected_diff)):
+    #    value=value+selected_diff[i]
+    #    index=index+selected_rsf[i]    
+    r=[]
+    s=[]
+    f=[]
+    for i in range(len(selected_rsf)):
+        for j in range(len(selected_rsf[i])):
+            if selected_rsf[i][j]==1:
+                r.append(selected_diff[i][j])
+            elif selected_rsf[i][j]==0:
+                s.append(selected_diff[i][j])
+            elif selected_rsf[i][j]==-1:
+                f.append(selected_diff[i][j])
+            
+    #for i in range(len(value)):
+    #    if index[i]==1:
+    #        r.append(index[i])
+    #    elif index[i]==-1:
+    #        f.append(index[i])
+    #    else:
+    #        s.append(index[i])
+                
+        
     norm_result=result/nbin
     F[0]=sum(result[:period/2])/sum(nbin[:period/2])
     F[1]=sum(result[period/2:])/sum(nbin[period/2:])
     dFF=(F[1]-F[0])/F[0]*100
-    return norm_result, dFF
+    return norm_result, dFF, r/F[0], s/F[0], f/F[0]
+
 
 def difference(curve, period):
     nperiod=len(curve)/period
