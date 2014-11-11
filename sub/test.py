@@ -1,20 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov 06 18:22:10 2014
+Created on Sun Nov 09 10:56:49 2014
 
-@author: KyoungWon
+@author: Philip
 """
-selected_rsf=sth[0]
-selected_diff=rth[0]
-r=[]
-s=[]
-f=[]
+b=diff_th1[:,0]
+a=[b[i] for i in range(len(b)) if isnan(b[i]) != 1]
 
-for i in range(len(selected_rsf)):
-    for j in range(len(selected_rsf[i])):
-        if selected_rsf[i][j]==1:
-            r.append(selected_diff[i][j])
-        elif selected_rsf[i][j]==0:
-            s.append(selected_diff[i][j])
-        elif selected_rsf[i][j]==-1:
-            f.append(selected_diff[i][j])
+for i in range(10):
+    lista=len(a)-i
+    

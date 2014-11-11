@@ -1,3 +1,4 @@
+from __future__ import division
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 14 13:15:32 2014
@@ -11,6 +12,8 @@ Created on Sat Feb 15 23:19:14 2014
 
 @author: Philip
 """
+
+# 3/5=0.6   3//5 = 0
 from numba import jit
 from IPython import get_ipython
 ip = get_ipython()
@@ -20,6 +23,7 @@ from matplotlib.widgets import CheckButtons
 from pylab import *   #include numpy, plotting function
 import numpy as np
 from sub import ReadBinMov, polygon, smooth, point, DAQ, spotAnalysis, multiplot, fit
+
 plt.close("all")
 
 
@@ -41,7 +45,7 @@ Define path and file name
 """
 filePath = 'G:/MATLAB/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
 #filePath = 'C:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122126_take3 100Hz preillu'
-#filePath = 'G:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122126_take3 100Hz preillu'
+#filePath = 'G:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
 filePath=filePath+'/'
 filePath=filePath.replace('\\','/')
 
@@ -140,7 +144,7 @@ if backGND_corr == 1:
         pb_constant=np.polyfit(t,mov_pb, 1)
         pbleach=np.polyval(pb_constant,t)
         pbc=pb_constant[1]/pbleach
-        
+
         plt.figure(2)
         line_smoothen, = plt.plot(t,mov_pb, label="Smoothen I")
         line_pbleaching, = plt.plot(t,pbleach, label="Photobleaching")
@@ -149,15 +153,15 @@ if backGND_corr == 1:
         plt.legend([line_smoothen, line_pbleaching, line_pb_correct_I], ["Smoothen I", "Photobleaching", "P.B. corrected I"], loc=2)
         plt.xlabel('time [s]')
         plt.show()
-        
+
         for i in range(frame):
-            mov_f[i,:,:]=mov_bg_cr[i,:,:]*pbc[i] 
-    else: 
+            mov_f[i,:,:]=mov_bg_cr[i,:,:]*pbc[i]
+    else:
         mov_f=mov_bg_cr
 else:
     mov_f=mov
 
-            
+
 """
 Define points (QDs) of interest, and their nearest peak position
 """
@@ -180,6 +184,11 @@ for n in range(npoint):
     for i in range(frame):
         temp=point.mask(mov_f[i,:,:], pts_new[n,:])
         spot_intensity[i,n]=temp.mean()
+    temp=smooth.moving_average(spot_intensity[:,n], frame/10)
+    pb_constant=np.polyfit(t, temp, 1)
+    pbleach=np.polyval(pb_constant, t)
+    pbc=pb_constant[1]/pbleach
+    spot_intensity[:,n]=multiply(spot_intensity[:,n], pbc)
 
 plt.figure(3)
 plt.subplot(212)
@@ -201,8 +210,8 @@ for i in range(npoint):
 """
 Data Analysis for spot
 """
-dFF=np.zeros((npoint))  # Unthresholded, averaged delta (F) / F 
-dFF_th=np.zeros((npoint))   # Thresholded, averaged delta (F) / F unit 
+dFF=np.zeros((npoint))  # Unthresholded, averaged delta (F) / F
+dFF_th=np.zeros((npoint))   # Thresholded, averaged delta (F) / F unit
 avg=np.zeros((npoint,period)) # Average Intensity over multiple cycle, unthresholded
 filted_avg=np.zeros((npoint,period)) # Average Intensity over multiple cycle, thresholded
 sortedI=np.zeros((frame, npoint))  # Sort spot_intensity such that 1st phase to 0:frame/2 and 2nd phase to frame/2 : frame
@@ -217,18 +226,27 @@ Rdiff=[]
 Sdiff=[]
 Fdiff=[]
 selected_rsf=[]
+Maxcorr1=[]
+Maxcorr2=[]
 for i in range(npoint):
     filted_avg[i,:], dFF_th[i], rtemp, stemp, ftemp  =spotAnalysis.threshold_avgperiod(threshold[i], spot_intensity[:,i], period, rp, sp, fp)
     Rdiff.append(rtemp)
     Sdiff.append(stemp)
     Fdiff.append(ftemp)
-    
+
     avg[i,:], dFF[i], sortedI[:,i] =spotAnalysis.avg_period(t, spot_intensity[:,i], period, threshold[i])
     #diff[:,i]=spotAnalysis.difference(spot_intensity[:,i], period)
     diff_th1[:,i], diff_th2[:,i], dff_avg[i] = spotAnalysis.filted_diff(spot_intensity[:,i], period, threshold[i])
     rising[:,i], staying[:,i], falling[:,i]= spotAnalysis.rf_selective_diff(spot_intensity[:,i], rp, sp, fp)
+    temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], frame, period)
+    Maxcorr1.append(temp1)
+    print("%d QD 1st > 2nd has %d consequetive cycle" % (i, len(temp1)/period))
+    Maxcorr2.append(temp2)
+    print("%d QD 1st < 2nd has %d consequetive cycle" % (i, len(temp2)/period))
+    #print("%d'th QD" % len(temp1)/period))
+    #print(len(temp2)/period)
 #figNum=multiplot.multiplot(filted_avg)
-del temp
+
 
 
 """
@@ -237,10 +255,24 @@ del temp
 oe_ratio=np.zeros((npoint))
 n_diff=np.zeros((binNum, npoint))
 bins=np.zeros((binNum+1, npoint))
+Ndiff1=[]
+Ndiff2=[]
+avg1=[]
+avg2=[]
 for i in range(npoint):
+    temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[:,i])
+    temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[:,i])
+    Ndiff1.append(temp1)
+    Ndiff2.append(temp2)
+    avg1.append(tavg1)
+    avg2.append(tavg2)
+    #Ndiff2.append(spotAnalysis.multiNdF(diff_th2[:,i]))
     oe_ratio[i] = multiplot.spotAnalysis(refimg, pts[i,:], sortedI[:,i], spot_intensity[:,i], threshold[i], diff_th1[:,i], diff_th2[:,i], filted_avg[i,:], t, binNum, rising[:,i], staying[:,i], falling[:,i], Rdiff[i], Sdiff[i], Fdiff[i])
 
-    
+NdF=[]
+for i in range(npoint):
+    temp_dF=multiplot.Ndiffhisto(Ndiff1[i], Ndiff2[i], binNum)
+    NdF.append(temp_dF)
 #even, odd, nhist, bins = spotAnalysis.evenodd(diff_th1)   #bins are dI/I
 
 
@@ -254,19 +286,19 @@ Changeable plot of selected points
 #lines = plt.plot(t, spot_intensity, visible=False)
 #lines_thresh = plt.plot(t, thresh_line, visible=False, linestyle='--')
 
-# Build check button axes  
+# Build check button axes
 #rax = plt.axes([0.02, 0.4, 0.13, 0.2], aspect='equal')  # [x start, y start, x span, y span]
 #labels = range(npoint)
 #labels=map(str, labels)
-#nofFalse=False, 
+#nofFalse=False,
 #nofFalse=nofFalse*(npoint)
 #check = CheckButtons(rax, labels, nofFalse)
 #def func(label):    # button's label
 #    i = labels.index(label)    # label is either '2 Hz' or '4 Hz' '6 Hz', so i is 0 or 1 or 2
 #    lines[i].set_visible(not lines[i].get_visible())    #if lines[i] is not visible, make it visible
-#    lines_thresh[i].set_visible(not lines_thresh[i].get_visible())  
+#    lines_thresh[i].set_visible(not lines_thresh[i].get_visible())
 #    fig.canvas.draw()
-#check.on_clicked(func)   # when the button is clicked, call func with button label        
+#check.on_clicked(func)   # when the button is clicked, call func with button label
 
 """
 even odd gaussian decomposition
@@ -301,5 +333,4 @@ even odd gaussian decomposition
 #file_list = sorted(glob(data_dir + 'Sq_camera.bin'))
 
 
- 
-    
+
