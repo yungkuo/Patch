@@ -1,7 +1,7 @@
 """
 Patch-clamp voltage sensing analysis script.
 
-Author: Philip
+Author: KyoungWon
 """
 
 from __future__ import division
