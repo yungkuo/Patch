@@ -108,7 +108,8 @@ plt.imshow(refimg, cmap=mpl.cm.Greys_r, vmin=refimg.min(), vmax=refimg.max())
 plt.show()
 plt.title('Averaged Image')
 
-bg, bg_pts = polygon.mean_polygon(mov, refimg)   # Define background by polygon input and return its mean intensity of background
+# Define background region by polygon input and return its mean intensity
+bg, bg_pts = polygon.mean_polygon(mov, refimg)
 
 plt.subplot(212)
 line_bgnd, = plt.plot(bg, label="BGND")
