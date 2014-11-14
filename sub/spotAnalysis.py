@@ -4,19 +4,16 @@ Created on Wed Sep 24 14:02:08 2014
 
 @author: KyoungWon
 """
+from __future__ import division
 import numpy as np
-from pylab import *
-import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit, leastsq
-from scipy import asarray as ar,exp
-import matplotlib.gridspec as gridspec
+
 from sub import smooth
 
 
 def multiNdF(diff):
     a=[]
     avg=[]
-    NaNfreediff=[diff[i] for i in range(len(diff)) if isnan(diff[i]) != 1]
+    NaNfreediff=[diff[i] for i in range(len(diff)) if np.isnan(diff[i]) != 1]
     for i in range(2,10): # number is averaging window
         a.append(smooth.moving_average(NaNfreediff, i)[i+2:])
         avg.append(np.mean(a[i-2]))
@@ -24,7 +21,7 @@ def multiNdF(diff):
 
 
 def correlating_cycle(curve, frame, period):
-    ncycle=frame/period
+    ncycle=frame // period
     half=period/2
     record1=0
     record2=0
@@ -60,7 +57,7 @@ def correlating_cycle(curve, frame, period):
     return Phase1upArray, Phase2upArray
 
 def norm_corr(curve, threshold, period):
-    ncycle=len(curve)/period
+    ncycle=len(curve) // period
     curveRS=curve.reshape(ncycle, period)
     cv_up=np.mean(curveRS[:, :period/2], axis=1)
     cv_down=np.mean(curveRS[:, period/2:period], axis=1)
@@ -121,13 +118,12 @@ def rf_selective_diff(curve, rp, sp, fp): # rising, falling, staying phase selec
 
 
 def avg_period(t, signal , period, threshold):
-    result=np.zeros((period))
-    ncycle=len(signal)/period
-    frame=len(signal)
-    thresh_line=np.ones(frame)*threshold
+    result = np.zeros(period)
+    ncycle = signal.size // period
+    frame = len(signal)
     F=np.zeros((2))
     for i in range(len(signal)):
-        k = int(mod(i,period))
+        k = int(np.mod(i,period))
         result[k] = result[k] + signal[i]
     F[0]=sum(result[:period/2])/(period/2)
     F[1]=sum(result[period/2:])/(period/2)
@@ -153,7 +149,7 @@ def threshold_avgperiod(threshold, signal, period, rp, sp, fp):
     for i in range(len(signal)):
         if signal[i] > threshold:
             # 1st role: calculate average dF/F
-            k=int(mod(i,period))
+            k=int(np.mod(i,period))
             result[k]=result[k]+signal[i]
             nbin[k]=nbin[k]+1
 
@@ -228,7 +224,7 @@ def difference(curve, period):
 
 def filted_diff(curve, period, threshold):
     nframe=len(curve)
-    ncycle=nframe/period
+    ncycle=nframe// period
     diff1=np.ones(ncycle)
     diff1[:]=np.NAN
     diff2=np.ones(ncycle)
@@ -279,7 +275,7 @@ def evenodd(diff):
 
 
 def gaussian(x, a, mu, sigma):
-    return a*exp(-(x-mu)**2/(2*sigma**2))
+    return a*np.exp(-(x-mu)**2/(2*sigma**2))
 def oddGaussian(x, a, mu, sigma):
-    return a*exp(-(x-mu)**2/(2*sigma**2))*(x-mu)
+    return a*np.exp(-(x-mu)**2/(2*sigma**2))*(x-mu)
 
