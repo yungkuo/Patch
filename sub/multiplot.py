@@ -5,9 +5,8 @@ Created on Fri Oct 03 17:13:56 2014
 @author: Philip
 """
 import numpy as np
-from pylab import *
-import matplotlib.pyplot as plt
 from scipy.optimize import leastsq
+import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
@@ -15,18 +14,17 @@ import matplotlib.gridspec as gridspec
 def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filted_avg, t, binNum, rising, staying, falling, Rdiff, Sdiff, Fdiff, spot_LPF, spot_HPF):
     frame=len(intensity)
     G = gridspec.GridSpec(3, 4)
-    fig =figure(figsize=(18, 9))
+    fig = plt.figure(figsize=(18, 9))
 
-    axes_0 = subplot(G[0, 0])
-    axes_0.imshow(refimg, cmap=cm.Greys_r, vmin=refimg.min(), vmax=refimg.max())
+    axes_0 = plt.subplot(G[0, 0])
+    axes_0.imshow(refimg, cmap=plt.cm.Greys_r, vmin=refimg.min(), vmax=refimg.max())
     axes_0.plot(pts[1], pts[0], 'ro')
     ncol=len(refimg[0,:])
     nrow=len(refimg[:,0])
     axes_0.set_xlim([0,ncol])
     axes_0.set_ylim([nrow,0])
 
-
-    axes_1 = subplot(G[0, 1:3])
+    axes_1 = plt.subplot(G[0, 1:3])
     axes_1.plot(t, intensity, color='b')
     thresh_line=np.ones(frame)*threshold
     axes_1.plot(t, thresh_line, color='r')
@@ -40,8 +38,7 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
 
     axes_1.set_title("Intensity trajectory")
 
-
-    axes_2 = subplot(G[1, 0])
+    axes_2 = plt.subplot(G[1, 0])
     Von=sortedI[:frame/2]
     Voff=sortedI[frame/2:]
     #f, ax=plt.subplots(2, sharex=True)
@@ -53,14 +50,14 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_2.axis([minbin*0.5, maxbin*1.2, 0, n1.max()*1.2])
     axes_2.set_title("Histogram of $I_{Von}$ and $I_{Voff}$")
 
-    axes_3 = subplot(G[2, 0])
+    axes_3 = plt.subplot(G[2, 0])
     axes_3.bar(bins1[:-1], n1-n2, width=bins1[1]-bins1[0])
     axes_3.set_xlim(minbin*0.5, maxbin*1.2)
     axes_3.axvline(x=threshold, linewidth=4, color='r')
     axes_3.set_title("$I_{Von}$ - $I_{Voff}$")
     #plt.xlabel("Intensity, [a.u]")
 
-    axes_4 = subplot(G[1, 1])
+    axes_4 = plt.subplot(G[1, 1])
     abs_diff1=abs(diff1)
     abs_diff2=abs(diff2)
     max_diff=max(np.nanmax(abs_diff1), np.nanmax(abs_diff2))
@@ -70,26 +67,25 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_4.set_title('Histogram of $\Delta I/I_{Max}$ , thresholded')
     axes_4.axis([max_diff*-1.2, max_diff*1.2, 0, n.max()*1.2])
 
-    axes_5 = subplot(G[2, 1])
+    axes_5 = plt.subplot(G[2, 1])
     axes_5.bar(bins[:-1], n-n_shift, width=bins[1]-bins[0])
 
     axes_5.set_xlim(-1.2*max_diff, max_diff*1.2)
     axes_5.set_title("Cycle - shifted cycle")
     #plt.xlabel("Intensity, [a.u]")
 
-
-    axes_6 = subplot(G[1, 2])
+    axes_6 = plt.subplot(G[1, 2])
 
     axes_6.plot(filted_avg, '-o')
     axes_6.set_title('Averaged Sigal over multiple cycle')
 
-    axes_7 = subplot(G[2, 2])
+    axes_7 = plt.subplot(G[2, 2])
     xnew=np.zeros((len(bins)-1))
     for i in range(len(bins)-1):
         xnew[i]= (bins[i]+bins[i+1])/2
     mu = sum(xnew*n)/sum(n)
     mu=0
-    sigma = sqrt(sum(n*(xnew-mu)**2)/sum(n))
+    sigma = np.sqrt(sum(n*(xnew-mu)**2)/sum(n))
     A1 = n.max()
     A2 = 0
     p = [A1, A2, mu, mu, sigma, sigma]   # initial guess parameters
@@ -114,7 +110,7 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_7.text(-0.1, -0.05, 'Odd /Even Gaussian ratio is %f ' % oe_ratio)
     #axes_7.legend()
     #axes_7.show()
-    axes_8 = subplot(G[0, 3])
+    axes_8 = plt.subplot(G[0, 3])
     maxp=max(max(rising), max(staying), max(falling))
     hist_range=(-maxp, maxp)
     nr, binss, patches = axes_8.hist(rising, binNum, range=hist_range, color='b', normed=True, alpha=0.3, label='rising')
@@ -130,7 +126,7 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     props = dict(boxstyle='round, pad=1', facecolor='white', edgecolor='black')
     axes_8.text(0.8, 0.9, boxtext, ha='left', va='center', multialignment="left", transform=axes_8.transAxes, bbox=props)
 
-    axes_9 = subplot(G[1, 3])
+    axes_9 = plt.subplot(G[1, 3])
     maxp=max(max(Rdiff), max(Sdiff), max(Fdiff))
     hist_range=(-maxp, maxp)
     nr, binss, patches = axes_9.hist(Rdiff, binNum, range=hist_range, color='r', normed=True, alpha=0.3, label='rising')
@@ -148,9 +144,9 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     return oe_ratio
 
 def gaussian(A, x, mu, sigma):
-    return A*exp(-(x-mu)**2/(2*sigma**2))
+    return A*np.exp(-(x-mu)**2/(2*sigma**2))
 def oddGaussian(A, x, mu, sigma):
-    return A*exp(-(x-mu)**2/(2*sigma**2))*(x-mu)
+    return A*np.exp(-(x-mu)**2/(2*sigma**2))*(x-mu)
 def resEOG(p, y, x):
     A1, A2, m1, m2, sd1, sd2 = p
     m1=0  # 0 is fixed for zero mean gaussian
@@ -187,11 +183,10 @@ def Nhistplot(onoff, offon, number, binNum, fig):
     return dF
 
 
-
 def multiplot(result):
     npoint=len(result[:,0])
     spot_quotient=npoint/9
-    spot_reminder=mod(npoint,9)
+    spot_reminder=np.mod(npoint,9)
 
     for i in range(spot_quotient+1):
         fig = plt.figure()
@@ -305,12 +300,11 @@ def multiplot(result):
 def multihist(diff, threshold):
     npoint=len(diff[0,:])
     spot_quotient=npoint/9
-    spot_reminder=mod(npoint,9)
+    spot_reminder=np.mod(npoint,9)
     hist_range=[]  # list
     for i in range(npoint):
         abs_diff=abs(diff[:,i])
         hist_range.append((-1*np.nanmax(abs_diff), np.nanmax(abs_diff)))
-
 
     for i in range(spot_quotient+1):
         fig = plt.figure()
@@ -455,7 +449,7 @@ def multihist2(Von, Voff):
         n2, bins2, patches = plt.hist(Voff[:,i], 30, range=hist_range, color='r', normed=True, alpha=0.5, label='2nd phase')
         plt.subplot(212)
         binsize=bins1[1]-bins1[0]
-        xnew=np.arange(minbin, maxbin-binsize, binsize)
+        #xnew=np.arange(minbin, maxbin-binsize, binsize)
         plt.bar(bins1[:-1], n1-n2, width=bins1[1]-bins1[0], color='b', alpha=0.5)
         plt.bar(bins1[:-1], n2-n1, width=bins1[1]-bins1[0], color='r', alpha=0.5)
         #plt.plot(n1-n2)
