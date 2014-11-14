@@ -6,7 +6,7 @@ Created on Fri Sep 19 15:42:48 2014
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from pylab import * 
+
 
 def inside_polygon(x, y, points):
     """
@@ -29,8 +29,8 @@ def inside_polygon(x, y, points):
                         inside = not inside
         p1x, p1y = p2x, p2y
     return inside
-    
-    
+
+
 def mean_polygon(mov, refimg):
     frame=len(mov[:,1,1])
     nrow=len(mov[1,:,1])
@@ -38,25 +38,25 @@ def mean_polygon(mov, refimg):
 
     print("Choose ROI by clicking multiple points")
     print("If finished, press center button of your mouse")
-    pts = ginput(0,0) # it will wait for three clicks
+    pts = plt.ginput(0,0) # it will wait for three clicks
     pts=np.array(pts)
     col_pts=pts[:,0]
     row_pts=pts[:,1]
     col_pts=np.append(col_pts,col_pts[0])
     row_pts=np.append(row_pts,row_pts[0])
     poly=zip(col_pts,row_pts)
-    plot(col_pts,row_pts, '-o')
+    plt.plot(col_pts,row_pts, '-o')
     plt.xlim([0,ncol])
     plt.ylim([nrow,0])
-    show()
+    plt.show()
     mask = np.zeros((nrow, ncol), dtype=np.int)
     for i in range(nrow):
         for j in range(ncol):
             mask[i,j]=inside_polygon(j,i,poly)
-    
-    mask3d=np.tile(mask, (frame,1,1)) 
+
+    mask3d=np.tile(mask, (frame,1,1))
     bg_3d=np.multiply(mov,mask3d)
     bg=np.sum(np.sum(bg_3d, axis=1), axis=1)/mask.sum()
-    
+
 
     return bg, poly

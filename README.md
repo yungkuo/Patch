@@ -1,5 +1,6 @@
 Patch
 =====
 
-execyte Patchanalysisv3.py
-v2
+Software for voltage-sensing analysis of patch-clamp experiments.
+
+The main script is `PatchAnalysis.py`.

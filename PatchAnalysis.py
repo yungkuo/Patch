@@ -1,44 +1,35 @@
+"""
+Patch-clamp voltage sensing analysis script.
+
+Author: KyoungWon
+"""
+
 from __future__ import division
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 14 13:15:32 2014
 
-@author: KyoungWon
-"""
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Feb 15 23:19:14 2014
-
-@author: Philip
-"""
-
-# 3/5=0.6   3//5 = 0
-from numba import jit
 from IPython import get_ipython
 ip = get_ipython()
 ip.magic("reset -f")
-import matplotlib.pyplot as plt
-from matplotlib.widgets import CheckButtons
-from pylab import *   #include numpy, plotting function
-import numpy as np
-from sub import ReadBinMov, polygon, smooth, point, DAQ, spotAnalysis, multiplot, fit
-
 plt.close("all")
 
-
+from sub import (ReadBinMov, polygon, smooth, point, DAQ, spotAnalysis,
+                 multiplot)
 
 """
 Control Pannel
 """
-MaskThresh = 0.05;      # we will throw away some pixels that are too dim, this is the fraction of the peak intensity below which to discard.
-SqAnalysis = 1;
-TriAnalysis = 0;import numpy as np
-existROIinfo = 0;       # whether or not to load ROIinfo.m file (1 = yes; 0 = no)
-method = 1;
-backGND_corr = 1;
-Photobleaching_corr=0;
-binNum=20   # Histogram bin number
+MaskThresh = 0.05   # we will throw away some pixels that are too dim, this is
+                    # the fraction of the peak intensity below which to discard
+SqAnalysis = 1
+TriAnalysis = 0
+existROIinfo = 0    # whether or not to load ROIinfo.m file (1 = yes; 0 = no)
+method = 1
+backGND_corr = 1
+Photobleaching_corr = 0
+binNum = 20         # Histogram bin number
 
 """
 Define path and file name
@@ -80,23 +71,25 @@ Cam_fname= 'Sq_camera.bin'
 """
 Import movie & Downsampled t, V, I
 """
-mov, frame = ReadBinMov.ReadBinMov(filePath+MovFile, nrow, ncol)   # mov is [row col frame]
+ # mov is [row col frame]
+mov, frame = ReadBinMov.ReadBinMov(filePath+MovFile, nrow, ncol)
   # the first few frames are often screwed, replace with subsequent frame
   # !these should be excluded from analysis!
-mov[:4,:,:]=np.tile(mov[4,:,:], (4,1,1))   # new axis make [row col] to [row col 1]
-mov=np.double(mov)
-params=[mov, SqFrameRate, MaskThresh, filePath, DAQ_Sq, SqDAQrate, method]
+
+mov[:4, :, :] = np.tile(mov[4, :, :], (4, 1, 1))
+mov = mov.astype('float64')
+params = [mov, SqFrameRate, MaskThresh, filePath, DAQ_Sq, SqDAQrate, method]
 
 t, V, I = DAQ.DAQread(filePath+DAQ_Sq, SqFrameRate, SqDAQrate, SqFreqV, frame)   # Extract downsampled t, V and I
-period=int(SqFrameRate/SqFreqV)
+period = SqFrameRate // SqFreqV
 
 """
 Define next V is whether rising (1) or falling (-1) or staying phase (0)
 """
-dV=np.diff(V)
-rp=[] # rising phase
-sp=[] # staying phase
-fp=[] # falling phase
+dV = np.diff(V)
+rp = [] # rising phase
+sp = [] # staying phase
+fp = [] # falling phase
 for i in range(len(dV)):
     if dV[i] >= 0.05:
         rp.append(i)
@@ -105,19 +98,18 @@ for i in range(len(dV)):
     else:
         sp.append(i)
 
-
-
 """
 Define background and bgnd correction and photobleaching correction
 """
-refimg=np.mean(mov, axis=0)
+refimg = np.mean(mov, axis=0)
 plt.figure(1)
 plt.subplot(211)
-plt.imshow(refimg, cmap=cm.Greys_r, vmin=refimg.min(), vmax=refimg.max())
+plt.imshow(refimg, cmap=mpl.cm.Greys_r, vmin=refimg.min(), vmax=refimg.max())
 plt.show()
 plt.title('Averaged Image')
 
-bg, bg_pts = polygon.mean_polygon(mov, refimg)   # Define background by polygon input and return its mean intensity of background
+# Define background region by polygon input and return its mean intensity
+bg, bg_pts = polygon.mean_polygon(mov, refimg)
 
 plt.subplot(212)
 line_bgnd, = plt.plot(bg, label="BGND")
@@ -131,9 +123,10 @@ plt.plot(bg_smooth, 'r', label="Smoothen BGND")
 plt.xlabel('Frame')
 plt.legend(bbox_to_anchor=(0.8, 1.2), loc=2, borderaxespad=0.)
 
-mov_bg_cr=mov-np.tile(bg_smooth[:,newaxis,newaxis], (1,nrow,ncol))  # bgnd corrected 3d movie
-mov_bg_cr1 = np.sum(np.sum(mov_bg_cr, axis=1), axis=1)/(ncol*nrow)  # bgnd corrected avg intensity
-
+# bgnd corrected 3d movie
+mov_bg_cr = mov-np.tile(bg_smooth[:, np.newaxis, np.newaxis], (1,nrow,ncol))
+# bgnd corrected avg intensity
+mov_bg_cr1 = np.sum(np.sum(mov_bg_cr, axis=1), axis=1)/(ncol*nrow)
 
 
 if backGND_corr == 1:
@@ -148,9 +141,12 @@ if backGND_corr == 1:
         plt.figure(2)
         line_smoothen, = plt.plot(t,mov_pb, label="Smoothen I")
         line_pbleaching, = plt.plot(t,pbleach, label="Photobleaching")
-        line_pb_correct_I, = plt.plot(t,multiply(mov_pb,pbc), label="P.B. corrected I")
+        line_pb_correct_I, = plt.plot(t, np.multiply(mov_pb,pbc),
+                                      label="P.B. corrected I")
         plt.title('Photobleaching correction')
-        plt.legend([line_smoothen, line_pbleaching, line_pb_correct_I], ["Smoothen I", "Photobleaching", "P.B. corrected I"], loc=2)
+        plt.legend([line_smoothen, line_pbleaching, line_pb_correct_I],
+                   ["Smoothen I", "Photobleaching", "P.B. corrected I"],
+                   loc=2)
         plt.xlabel('time [s]')
         plt.show()
 
@@ -167,13 +163,13 @@ Define points (QDs) of interest, and their nearest peak position
 """
 plt.figure(1)
 plt.subplot(211)
-fig = gcf()
+fig = plt.gcf()
 fig.canvas.manager.window.raise_()
 
 pts = point.pIO(mov)
 pts=np.array(pts)
 pts_new = point.localmax(refimg, pts)
-npoint=size(pts_new[:,0])
+npoint = np.size(pts_new[:, 0])
 
 
 """
@@ -182,17 +178,17 @@ Extracting mean intensity of 5 X 5 mask in your points of interest
 spot_intensity=np.zeros((frame,npoint))
 for n in range(npoint):
     for i in range(frame):
-        temp=point.mask(mov_f[i,:,:], pts_new[n,:])
-        spot_intensity[i,n]=temp.mean()
+        temp = point.mask(mov_f[i,:,:], pts_new[n,:])
+        spot_intensity[i,n] = temp.mean()
     temp=smooth.moving_average(spot_intensity[:,n], frame/10)
-    pb_constant=np.polyfit(t, temp, 1)
-    pbleach=np.polyval(pb_constant, t)
-    pbc=pb_constant[1]/pbleach
-    spot_intensity[:,n]=multiply(spot_intensity[:,n], pbc)
+    pb_constant = np.polyfit(t, temp, 1)
+    pbleach = np.polyval(pb_constant, t)
+    pbc = pb_constant[1]/pbleach
+    spot_intensity[:,n] = np.multiply(spot_intensity[:,n], pbc)
 
 plt.figure(3)
 plt.subplot(212)
-fig = gcf()
+fig = plt.gcf()
 fig.canvas.manager.window.raise_()
 
 """
@@ -201,44 +197,61 @@ Apply threshold
 threshold=np.zeros((npoint))
 thresh_line=np.zeros((frame,npoint))
 for i in range(npoint):
-    plt.text(0.1, 0.9*spot_intensity[:,i].max(), "Click the treshold point", color='red', fontsize=14, fontweight='bold')
-    plot(t, spot_intensity[:,i])
-    temp=np.array(ginput(1))
+    plt.text(0.1, 0.9*spot_intensity[:,i].max(), "Click the treshold point",
+             color='red', fontsize=14, fontweight='bold')
+    plt.plot(t, spot_intensity[:,i])
+    temp=np.array(plt.ginput(1))
     threshold[i]=temp[0,1]
-    cla()
+    plt.cla()
 
 """
 Data Analysis for spot
 """
-dFF=np.zeros((npoint))  # Unthresholded, averaged delta (F) / F
-dFF_th=np.zeros((npoint))   # Thresholded, averaged delta (F) / F unit
-avg=np.zeros((npoint,period)) # Average Intensity over multiple cycle, unthresholded
-filted_avg=np.zeros((npoint,period)) # Average Intensity over multiple cycle, thresholded
-sortedI=np.zeros((frame, npoint))  # Sort spot_intensity such that 1st phase to 0:frame/2 and 2nd phase to frame/2 : frame
-#diff=np.zeros((frame/period,npoint))  #list of delta F (I1st - I2nd) per cycle, unthresholded
-diff_th1=np.zeros((frame/period,npoint)) #list of delta F (I1st - I2nd) per cycle, thresholded
-diff_th2=np.zeros((frame/period,npoint)) #list of delta F (I2nd - I1st (next)) per cycle, thresholded
-dff_avg=np.zeros(npoint)
-rising=np.zeros((len(rp), npoint))
-staying=np.zeros((len(sp), npoint))
-falling=np.zeros((len(fp), npoint))
-Rdiff=[]
-Sdiff=[]
-Fdiff=[]
-selected_rsf=[]
-Maxcorr1=[]
-Maxcorr2=[]
+# Unthresholded, averaged delta (F) / F
+dFF = np.zeros((npoint))
+# Thresholded, averaged delta (F) / F unit
+dFF_th = np.zeros((npoint))
+# Average Intensity over multiple cycle, unthresholded
+avg = np.zeros((npoint,period))
+# Average Intensity over multiple cycle, thresholded
+filted_avg = np.zeros((npoint,period))
+# Sort spot_intensity such that 1st phase to 0:frame/2 and 2nd phase to
+# frame/2 : frame
+sortedI = np.zeros((frame, npoint))
+##list of delta F (I1st - I2nd) per cycle, unthresholded
+#diff=np.zeros((frame/period,npoint))
+#list of delta F (I1st - I2nd) per cycle, thresholded
+diff_th1 = np.zeros((frame/period,npoint))
+#list of delta F (I2nd - I1st (next)) per cycle, thresholded
+diff_th2 = np.zeros((frame/period,npoint))
+dff_avg = np.zeros(npoint)
+rising = np.zeros((len(rp), npoint))
+staying = np.zeros((len(sp), npoint))
+falling = np.zeros((len(fp), npoint))
+Rdiff = []
+Sdiff = []
+Fdiff = []
+selected_rsf = []
+Maxcorr1 = []
+Maxcorr2 = []
 for i in range(npoint):
-    filted_avg[i,:], dFF_th[i], rtemp, stemp, ftemp  =spotAnalysis.threshold_avgperiod(threshold[i], spot_intensity[:,i], period, rp, sp, fp)
+    filted_avg[i,:], dFF_th[i], rtemp, stemp, ftemp  = \
+            spotAnalysis.threshold_avgperiod(threshold[i], spot_intensity[:,i],
+                                             period, rp, sp, fp)
     Rdiff.append(rtemp)
     Sdiff.append(stemp)
     Fdiff.append(ftemp)
 
-    avg[i,:], dFF[i], sortedI[:,i] =spotAnalysis.avg_period(t, spot_intensity[:,i], period, threshold[i])
+    avg[i,:], dFF[i], sortedI[:,i] = spotAnalysis.avg_period(t,
+                                            spot_intensity[:,i], period,
+                                            threshold[i])
     #diff[:,i]=spotAnalysis.difference(spot_intensity[:,i], period)
-    diff_th1[:,i], diff_th2[:,i], dff_avg[i] = spotAnalysis.filted_diff(spot_intensity[:,i], period, threshold[i])
-    rising[:,i], staying[:,i], falling[:,i]= spotAnalysis.rf_selective_diff(spot_intensity[:,i], rp, sp, fp)
-    temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], frame, period)
+    diff_th1[:,i], diff_th2[:,i], dff_avg[i] = \
+        spotAnalysis.filted_diff(spot_intensity[:,i], period, threshold[i])
+    rising[:,i], staying[:,i], falling[:,i]= \
+        spotAnalysis.rf_selective_diff(spot_intensity[:,i], rp, sp, fp)
+    temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i],
+                                                  frame, period)
     Maxcorr1.append(temp1)
     print("%d QD 1st > 2nd has %d consequetive cycle" % (i, len(temp1)/period))
     Maxcorr2.append(temp2)
@@ -252,13 +265,13 @@ for i in range(npoint):
 """
 2nd Analysis
 """
-oe_ratio=np.zeros((npoint))
-n_diff=np.zeros((binNum, npoint))
-bins=np.zeros((binNum+1, npoint))
-Ndiff1=[]
-Ndiff2=[]
-avg1=[]
-avg2=[]
+oe_ratio = np.zeros((npoint))
+n_diff = np.zeros((binNum, npoint))
+bins = np.zeros((binNum+1, npoint))
+Ndiff1 = []
+Ndiff2 = []
+avg1 = []
+avg2 = []
 for i in range(npoint):
     temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[:,i])
     temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[:,i])
@@ -267,11 +280,15 @@ for i in range(npoint):
     avg1.append(tavg1)
     avg2.append(tavg2)
     #Ndiff2.append(spotAnalysis.multiNdF(diff_th2[:,i]))
-    oe_ratio[i] = multiplot.spotAnalysis(refimg, pts[i,:], sortedI[:,i], spot_intensity[:,i], threshold[i], diff_th1[:,i], diff_th2[:,i], filted_avg[i,:], t, binNum, rising[:,i], staying[:,i], falling[:,i], Rdiff[i], Sdiff[i], Fdiff[i])
+    oe_ratio[i] = multiplot.spotAnalysis(refimg, pts[i,:], sortedI[:,i],
+                                spot_intensity[:,i], threshold[i],
+                                diff_th1[:,i], diff_th2[:,i], filted_avg[i,:],
+                                t, binNum, rising[:,i], staying[:,i],
+                                falling[:,i], Rdiff[i], Sdiff[i], Fdiff[i])
 
-NdF=[]
+NdF = []
 for i in range(npoint):
-    temp_dF=multiplot.Ndiffhisto(Ndiff1[i], Ndiff2[i], binNum)
+    temp_dF = multiplot.Ndiffhisto(Ndiff1[i], Ndiff2[i], binNum)
     NdF.append(temp_dF)
 #even, odd, nhist, bins = spotAnalysis.evenodd(diff_th1)   #bins are dI/I
 
