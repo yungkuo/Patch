@@ -20,6 +20,7 @@ ip = get_ipython()
 ip.magic("reset -f")
 import matplotlib.pyplot as plt
 from matplotlib.widgets import CheckButtons
+from scipy.ndimage.filters import gaussian_filter1d
 from pylab import *   #include numpy, plotting function
 import numpy as np
 from sub import ReadBinMov, polygon, smooth, point, DAQ, spotAnalysis, multiplot, fit
@@ -37,7 +38,9 @@ TriAnalysis = 0;import numpy as np
 existROIinfo = 0;       # whether or not to load ROIinfo.m file (1 = yes; 0 = no)
 method = 1;
 backGND_corr = 1;
-Photobleaching_corr=0;
+Photobleaching_corr=0;  # for background
+spot_pbc=0 # for QDs
+spot_LPF=1 # LPF for spot
 binNum=20   # Histogram bin number
 
 """
@@ -45,7 +48,7 @@ Define path and file name
 """
 filePath = 'G:/MATLAB/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
 #filePath = 'C:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122126_take3 100Hz preillu'
-#filePath = 'G:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
+#filePath = 'G:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov1/114640_take1 100Hz'
 filePath=filePath+'/'
 filePath=filePath.replace('\\','/')
 
@@ -161,7 +164,7 @@ if backGND_corr == 1:
 else:
     mov_f=mov
 
-
+del mov, mov_bg_cr, mov_bg_cr1
 """
 Define points (QDs) of interest, and their nearest peak position
 """
@@ -170,7 +173,7 @@ plt.subplot(211)
 fig = gcf()
 fig.canvas.manager.window.raise_()
 
-pts = point.pIO(mov)
+pts = point.pIO(mov_f)
 pts=np.array(pts)
 pts_new = point.localmax(refimg, pts)
 npoint=size(pts_new[:,0])
@@ -184,11 +187,22 @@ for n in range(npoint):
     for i in range(frame):
         temp=point.mask(mov_f[i,:,:], pts_new[n,:])
         spot_intensity[i,n]=temp.mean()
-    temp=smooth.moving_average(spot_intensity[:,n], frame/10)
-    pb_constant=np.polyfit(t, temp, 1)
-    pbleach=np.polyval(pb_constant, t)
-    pbc=pb_constant[1]/pbleach
-    spot_intensity[:,n]=multiply(spot_intensity[:,n], pbc)
+
+spot_LP=np.zeros_like(spot_intensity)
+spot_HP=np.zeros_like(spot_intensity)
+if spot_pbc== 1:
+    for n in range(npoint):
+        for i in range(frame):
+            temp=smooth.moving_average(spot_intensity[:,n], frame/10)
+            pb_constant=np.polyfit(t, temp, 1)
+            pbleach=np.polyval(pb_constant, t)
+            pbc=pb_constant[1]/pbleach
+            spot_intensity[:,n]=multiply(spot_intensity[:,n], pbc)
+elif spot_LPF==1:
+    for i in range(npoint):
+        spot_LP[:,i]=gaussian_filter1d(spot_intensity[:,i], sigma=100)
+        spot_HP[:,i]=spot_intensity[:,i]-spot_LP[:,i]
+
 
 plt.figure(3)
 plt.subplot(212)
@@ -238,7 +252,8 @@ for i in range(npoint):
     #diff[:,i]=spotAnalysis.difference(spot_intensity[:,i], period)
     diff_th1[:,i], diff_th2[:,i], dff_avg[i] = spotAnalysis.filted_diff(spot_intensity[:,i], period, threshold[i])
     rising[:,i], staying[:,i], falling[:,i]= spotAnalysis.rf_selective_diff(spot_intensity[:,i], rp, sp, fp)
-    temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], frame, period)
+    #temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], frame, period)
+    temp1, temp2 = spotAnalysis.norm_corr(spot_intensity[:,i], threshold[i], period)
     Maxcorr1.append(temp1)
     print("%d QD 1st > 2nd has %d consequetive cycle" % (i, len(temp1)/period))
     Maxcorr2.append(temp2)
@@ -255,26 +270,33 @@ for i in range(npoint):
 oe_ratio=np.zeros((npoint))
 n_diff=np.zeros((binNum, npoint))
 bins=np.zeros((binNum+1, npoint))
-Ndiff1=[]
-Ndiff2=[]
+Ndiff1hist=[]
+Ndiff2hist=[]
 avg1=[]
 avg2=[]
 for i in range(npoint):
     temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[:,i])
     temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[:,i])
-    Ndiff1.append(temp1)
-    Ndiff2.append(temp2)
+    Ndiff1hist.append(temp1)
+    Ndiff2hist.append(temp2)
     avg1.append(tavg1)
     avg2.append(tavg2)
     #Ndiff2.append(spotAnalysis.multiNdF(diff_th2[:,i]))
-    oe_ratio[i] = multiplot.spotAnalysis(refimg, pts[i,:], sortedI[:,i], spot_intensity[:,i], threshold[i], diff_th1[:,i], diff_th2[:,i], filted_avg[i,:], t, binNum, rising[:,i], staying[:,i], falling[:,i], Rdiff[i], Sdiff[i], Fdiff[i])
+    oe_ratio[i] = multiplot.spotAnalysis(refimg, pts[i,:], sortedI[:,i], spot_intensity[:,i], threshold[i], diff_th1[:,i], diff_th2[:,i], filted_avg[i,:], t, binNum, rising[:,i], staying[:,i], falling[:,i], Rdiff[i], Sdiff[i], Fdiff[i], spot_LP[:,i], spot_HP[:,i])
 
 NdF=[]
 for i in range(npoint):
-    temp_dF=multiplot.Ndiffhisto(Ndiff1[i], Ndiff2[i], binNum)
+    temp_dF=multiplot.Ndiffhisto(Ndiff1hist[i], Ndiff2hist[i], binNum)
     NdF.append(temp_dF)
 #even, odd, nhist, bins = spotAnalysis.evenodd(diff_th1)   #bins are dI/I
 
+result=np.zeros((npoint, 12))
+for i in range(npoint):
+    result[i, 0]=len(Maxcorr1[i])/period  # Maximum consequetive on > off cycle
+    result[i, 1]=len(Maxcorr2[i])/period  # Maximum consequetive on < off cycle
+    result[i, 3:11]=NdF[i]   # dF/F,  N cycle averaged
+result[:,2]=dff_avg  # dF/F
+result[:,11]=oe_ratio  # odd/even gaussian peak
 
 """
 Changeable plot of selected points

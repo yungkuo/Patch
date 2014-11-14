@@ -12,7 +12,7 @@ import matplotlib.gridspec as gridspec
 
 
 
-def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filted_avg, t, binNum, rising, staying, falling, Rdiff, Sdiff, Fdiff):
+def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filted_avg, t, binNum, rising, staying, falling, Rdiff, Sdiff, Fdiff, spot_LPF, spot_HPF):
     frame=len(intensity)
     G = gridspec.GridSpec(3, 4)
     fig =figure(figsize=(18, 9))
@@ -30,6 +30,11 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_1.plot(t, intensity, color='b')
     thresh_line=np.ones(frame)*threshold
     axes_1.plot(t, thresh_line, color='r')
+
+    axes_1.plot(t, spot_LPF, 'm', label="LPF filtered" )
+    axes_1.plot(t, spot_HPF, 'g', label="HP component" )
+
+
     axes_1.set_xlabel("Time [s]")
     axes_1.xaxis.set_label_coords(1.05, -0.025)
 
@@ -129,7 +134,7 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     maxp=max(max(Rdiff), max(Sdiff), max(Fdiff))
     hist_range=(-maxp, maxp)
     nr, binss, patches = axes_9.hist(Rdiff, binNum, range=hist_range, color='r', normed=True, alpha=0.3, label='rising')
-    #$ns, binss, patches = axes_9.hist(Sdiff, binNum, range=hist_range, color='g', normed=True, alpha=0.3, label='staying')
+    ns, binss, patches = axes_9.hist(Sdiff, binNum, range=hist_range, color='g', normed=True, alpha=0.3, label='staying')
     nf, binsf, patches = axes_9.hist(Fdiff, binNum, range=hist_range, color='b', normed=True, alpha=0.5, label='falling')
     R_mean=np.mean(Rdiff);  S_mean=np.mean(Sdiff); F_mean=np.mean(Fdiff)
     R_std=np.std(Rdiff);  S_std=np.std(Sdiff); F_std=np.std(Fdiff)
@@ -173,7 +178,7 @@ def Nhistplot(onoff, offon, number, binNum, fig):
     nr, binss, patches0 = ax0.hist(onoff, binNum, range=hist_range, color='b',  alpha=0.3)
     nr, binss, patches01 = ax0.hist(offon, binNum, range=hist_range, color='r',  alpha=0.3)
     dF=(np.mean(onoff)-np.mean(offon))/2
-    ax0.set_title("%d cycle, $\Delta I/I_{Max}$ = %.2f [%%]" % (number, dF*100) )
+    ax0.set_title("%d cycle, $\Delta I/I_{Max}$ = %.2f [%%]" % (number+2, dF*100) )
     ax0.set_xlim(-0.3, 0.3)
     ax0.axvline(x=0, linewidth=2, color='k')
     #boxtext= "$\Delta I/I_{Max}$ [%%] = %.2f" % dF*100
