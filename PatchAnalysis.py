@@ -109,8 +109,9 @@ refimg = np.mean(mov, axis=0)
 plt.figure(1)
 plt.subplot(211)
 plt.imshow(refimg, cmap=mpl.cm.Greys_r, vmin=refimg.min(), vmax=refimg.max())
-plt.show()
 plt.title('Averaged Image')
+plt.show()
+
 
 # Define background region by polygon input and return its mean intensity
 bg, bg_pts = polygon.mean_polygon(mov, refimg)
@@ -118,8 +119,9 @@ bg, bg_pts = polygon.mean_polygon(mov, refimg)
 plt.subplot(212)
 line_bgnd, = plt.plot(bg, label="BGND")
 plt.legend(bbox_to_anchor=(0.8, 1.2), loc=2, borderaxespad=0.)
-plt.show()
 plt.title('Averaged Background of ROI')
+plt.show()
+
 
 bg_smooth=smooth.moving_average(bg, frame/10)
 
