@@ -45,5 +45,8 @@ Temporary Items
 
 *.pyc
 *.pptx
-analysis2.xlsx
 *.xlsx
+*.c
+*.so
+*.pyd
+*/build/*
