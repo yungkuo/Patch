@@ -31,10 +31,12 @@ def meanspotI(signal, period, threshold):
 
     return meanI, mean_thI
 
-def burstarray(fmean_th):
+def burstarray(fmean_th, normalize=True):
     Favg = np.mean(fmean_th)
-    a=fmean_th[2:] - 2*fmean_th[1:-1] + fmean_th[:-2]
-    return a/Favg
+    a = fmean_th[2:] - 2*fmean_th[1:-1] + fmean_th[:-2]
+    if normalize:
+        a /= Favg
+    return a
 
 
 def multiNdF(diff):

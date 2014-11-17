@@ -58,10 +58,10 @@ SqRec = Value[0]           # Square wave recorded? (0 = No; 1 = Yes)
 TriRec = Value[1]          # Triangle wave recorded? (0 = No; 1 = Yes)
 SqDAQrate = Value[3]       # Square wave DAQ sampling rate (Hz)
 SqFreqV = Value[4]         # Square wave frequency (Hz)
-SqFrameRate = Value[6]     # Square frame rate (Hz)
+SqFrameRate = Value[6]     # Square nframes rate (Hz)
 TriDAQrate = Value[7]      # Triangle wave DAQ sampling rate (Hz)
 TriFreqV = Value[8]        # Triangle wave frequency (Hz)
-TriFrameRate = Value[10]   # Triangle frame rate (Hz)
+TriFrameRate = Value[10]   # Triangle nframes rate (Hz)
 ncol = int(Value[14])
 nrow = int(Value[15])
 DAQ_Sq = 'Sqrwave_DAQ.txt'
@@ -74,9 +74,9 @@ Cam_fname= 'Sq_camera.bin'
 """
 Import movie & Downsampled t, V, I
 """
- # mov is [row col frame]
-mov, frame = ReadBinMov.ReadBinMov(filePath+MovFile, nrow, ncol)
-  # the first few frames are often screwed, replace with subsequent frame
+ # mov is [row col nframes]
+mov, nframes = ReadBinMov.ReadBinMov(filePath+MovFile, nrow, ncol)
+  # the first few frames are often screwed, replace with subsequent nframes
   # !these should be excluded from analysis!
 
 mov[:4, :, :] = np.tile(mov[4, :, :], (4, 1, 1))
@@ -84,7 +84,7 @@ mov = mov.astype('float64')
 params = [mov, SqFrameRate, MaskThresh, filePath, DAQ_Sq, SqDAQrate, method]
 
 # Extract downsampled t, V and I
-t, V, I = DAQ.DAQread(filePath+DAQ_Sq, SqFrameRate, SqDAQrate, SqFreqV, frame)
+t, V, I = DAQ.DAQread(filePath+DAQ_Sq, SqFrameRate, SqDAQrate, SqFreqV, nframes)
 period = int(np.round(SqFrameRate / SqFreqV))
 assert period == SqFrameRate / SqFreqV, "SqFrameRate / SqFreqV should be int"
 
@@ -124,7 +124,7 @@ plt.title('Averaged Background of ROI')
 plt.show()
 
 
-#bg_smooth=smooth.moving_average(bg, frame/10)
+#bg_smooth=smooth.moving_average(bg, nframes/10)
 bg_smooth = gaussian_filter1d(bg, sigma=100)
 plt.plot(bg_smooth, 'r', label="Smoothen BGND")
 plt.xlabel('Frame')
@@ -138,8 +138,8 @@ mov_bg_cr1 = np.sum(np.sum(mov_bg_cr, axis=1), axis=1)/(ncol*nrow)
 
 if backGND_corr == True:
     if Photobleaching_corr == True:
-        mov_f=np.zeros((frame,nrow,ncol))
-        mov_pb=smooth.moving_average(mov_bg_cr1, frame/10)   # photobleaching
+        mov_f=np.zeros((nframes,nrow,ncol))
+        mov_pb=smooth.moving_average(mov_bg_cr1, nframes/10)   # photobleaching
 
         pb_constant=np.polyfit(t,mov_pb, 1)
         pbleach=np.polyval(pb_constant,t)
@@ -157,7 +157,7 @@ if backGND_corr == True:
         plt.xlabel('time [s]')
         plt.show()
 
-        for i in range(frame):
+        for i in range(nframes):
             mov_f[i,:,:]=mov_bg_cr[i,:,:]*pbc[i]
     else:
         mov_f=mov_bg_cr
@@ -182,16 +182,16 @@ npoint = np.size(pts_new[:, 0])
 """
 Extracting mean intensity of 5 X 5 mask in your points of interest
 """
-spot_intensity=np.zeros((frame,npoint))
+spot_intensity=np.zeros((nframes,npoint))
 for n in range(npoint):
-    for i in range(frame):
+    for i in range(nframes):
         temp = point.mask(mov_f[i,:,:], pts_new[n,:])
         spot_intensity[i,n] = temp.mean()
 
 if spot_pbc == True:
     for n in range(npoint):
-        for i in range(frame):
-            temp = smooth.moving_average(spot_intensity[:,n], frame/10)
+        for i in range(nframes):
+            temp = smooth.moving_average(spot_intensity[:,n], nframes/10)
             pb_constant = np.polyfit(t, temp, 1)
             pbleach = np.polyval(pb_constant, t)
             pbc = pb_constant[1]/pbleach
@@ -211,7 +211,7 @@ fig.canvas.manager.window.raise_()
 Apply threshold
 """
 threshold=np.zeros((npoint))
-thresh_line=np.zeros((frame,npoint))
+thresh_line=np.zeros((nframes,npoint))
 for i in range(npoint):
     plt.text(0.1, 0.9*spot_intensity[:,i].max(), "Click the treshold point",
              color='red', fontsize=14, fontweight='bold')
@@ -234,15 +234,15 @@ dFF_th = np.zeros((npoint))
 avg = np.zeros((npoint,period))
 # Average Intensity over multiple cycle, thresholded
 filted_avg = np.zeros((npoint,period))
-# Sort spot_intensity such that 1st phase to 0:frame/2 and 2nd phase to
-# frame/2 : frame
-#sortedI = np.zeros((frame, npoint))
+# Sort spot_intensity such that 1st phase to 0:nframes/2 and 2nd phase to
+# nframes/2 : nframes
+#sortedI = np.zeros((nframes, npoint))
 ##list of delta F (I1st - I2nd) per cycle, unthresholded
-#diff=np.zeros((frame/period,npoint))
+#diff=np.zeros((nframes/period,npoint))
 #list of delta F (I1st - I2nd) per cycle, thresholded
-diff_th1 = np.zeros((frame/period,npoint))
+diff_th1 = np.zeros((nframes/period,npoint))
 #list of delta F (I2nd - I1st (next)) per cycle, thresholded
-diff_th2 = np.zeros((frame/period,npoint))
+diff_th2 = np.zeros((nframes/period,npoint))
 dff_avg = np.zeros(npoint)
 rising = np.zeros((len(rp), npoint))
 staying = np.zeros((len(sp), npoint))
@@ -271,7 +271,7 @@ for i in range(npoint):
     rising[:,i], staying[:,i], falling[:,i] = \
         spotAnalysis.rf_selective_diff(spot_intensity[:,i], rp, sp, fp)
 
-    #temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], frame, period)
+    #temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], nframes, period)
     temp1, temp2 = spotAnalysis.norm_corr(spot_intensity[:,i], threshold[i], period)
     Maxcorr1.append(temp1)
     print("%d QD 1st > 2nd has %d consequetive cycle" % (i, len(temp1)/period))
