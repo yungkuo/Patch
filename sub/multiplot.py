@@ -11,7 +11,8 @@ import matplotlib.gridspec as gridspec
 
 
 
-def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filted_avg, t, binNum, rising, staying, falling, Rdiff, Sdiff, Fdiff, spot_LPF, spot_HPF):
+def spotAnalysis(refimg, pts, meanI, intensity, threshold, diff1, diff2, 
+                 filted_avg, t, binNum, rising, staying, falling, Rdiff, Sdiff, Fdiff):
     frame=len(intensity)
     G = gridspec.GridSpec(3, 4)
     fig = plt.figure(figsize=(18, 9))
@@ -29,18 +30,14 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     thresh_line=np.ones(frame)*threshold
     axes_1.plot(t, thresh_line, color='r')
 
-    axes_1.plot(t, spot_LPF, 'm', label="LPF filtered" )
-    axes_1.plot(t, spot_HPF, 'g', label="HP component" )
-
-
     axes_1.set_xlabel("Time [s]")
     axes_1.xaxis.set_label_coords(1.05, -0.025)
 
     axes_1.set_title("Intensity trajectory")
 
     axes_2 = plt.subplot(G[1, 0])
-    Von=sortedI[:frame/2]
-    Voff=sortedI[frame/2:]
+    Von=meanI[::2]
+    Voff=meanI[1::2]
     #f, ax=plt.subplots(2, sharex=True)
     maxbin=max(max(Von), max(Voff))
     minbin=min(min(Von), min(Voff))
@@ -113,34 +110,38 @@ def spotAnalysis(refimg, pts, sortedI, intensity, threshold, diff1, diff2, filte
     axes_8 = plt.subplot(G[0, 3])
     maxp=max(max(rising), max(staying), max(falling))
     hist_range=(-maxp, maxp)
-    nr, binss, patches = axes_8.hist(rising, binNum, range=hist_range, color='b', normed=True, alpha=0.3, label='rising')
-    ns, binss, patches = axes_8.hist(staying, binNum, range=hist_range, color='r', normed=True, alpha=0.3, label='staying')
-    nf, binsf, patches = axes_8.hist(falling, binNum, range=hist_range, color='g', normed=True, alpha=0.5, label='falling')
     r_mean=np.mean(rising);  s_mean=np.mean(staying); f_mean=np.mean(falling)
     r_std=np.std(rising);  s_std=np.std(staying); f_std=np.std(falling)
+    nr, binss, patches = axes_8.hist(rising, binNum, range=hist_range, color='r', normed=True, alpha=0.4, label=r'rise, $\mu_r$=%.2f, $\sigma_r$=%.2f' % (r_mean*100, r_std))
+    ns, binss, patches = axes_8.hist(staying, binNum, range=hist_range, color='g', normed=True, alpha=0.4, label=r'stay, $\mu_s$=%.2f, $\sigma_s$=%.2f' % (s_mean*100, s_std))
+    nf, binsf, patches = axes_8.hist(falling, binNum, range=hist_range, color='b', normed=True, alpha=0.4, label=r'fall, $\mu_f$=%.2f, $\sigma_f$=%.2f' % (f_mean*100, f_std))
+    axes_8.legend(bbox_to_anchor=(0.8, 0.95), loc=2, prop={'size':10}, borderaxespad=0.)
 
-    boxtext= """$\mu_r$ = %.2f, $\sigma_r = %.2f $
-    $\mu_s$ = %.2f, $\sigma_s$ = %.2f
-    $\mu_f$ = %.2f, $\sigma_f$ = %.2f"""  % (r_mean*100, r_std, s_mean*100, s_std, f_mean*100, f_std)
 
-    props = dict(boxstyle='round, pad=1', facecolor='white', edgecolor='black')
-    axes_8.text(0.8, 0.9, boxtext, ha='left', va='center', multialignment="left", transform=axes_8.transAxes, bbox=props)
+    #boxtext= """$\mu_r$ = %.2f, $\sigma_r = %.2f $
+    #$\mu_s$ = %.2f, $\sigma_s$ = %.2f
+    #$\mu_f$ = %.2f, $\sigma_f$ = %.2f"""  % (r_mean*100, r_std, s_mean*100, s_std, f_mean*100, f_std)
+
+    #props = dict(boxstyle='round, pad=1', facecolor='white', edgecolor='black')
+    #axes_8.text(0.8, 0.9, boxtext, ha='left', va='center', multialignment="left", transform=axes_8.transAxes, bbox=props)
 
     axes_9 = plt.subplot(G[1, 3])
     maxp=max(max(Rdiff), max(Sdiff), max(Fdiff))
     hist_range=(-maxp, maxp)
-    nr, binss, patches = axes_9.hist(Rdiff, binNum, range=hist_range, color='r', normed=True, alpha=0.3, label='rising')
-    ns, binss, patches = axes_9.hist(Sdiff, binNum, range=hist_range, color='g', normed=True, alpha=0.3, label='staying')
-    nf, binsf, patches = axes_9.hist(Fdiff, binNum, range=hist_range, color='b', normed=True, alpha=0.5, label='falling')
     R_mean=np.mean(Rdiff);  S_mean=np.mean(Sdiff); F_mean=np.mean(Fdiff)
     R_std=np.std(Rdiff);  S_std=np.std(Sdiff); F_std=np.std(Fdiff)
+    nr, binss, patches = axes_9.hist(Rdiff, binNum, range=hist_range, color='r', normed=True, alpha=0.4, label=r'rise, $\mu_r$=%.2f, $\sigma_r$=%.2f' % (R_mean*100, R_std))
+    ns, binss, patches = axes_9.hist(Sdiff, binNum, range=hist_range, color='g', normed=True, alpha=0.4, label=r'stay, $\mu_s$=%.2f, $\sigma_s$=%.2f' % (S_mean*100, S_std))
+    nf, binsf, patches = axes_9.hist(Fdiff, binNum, range=hist_range, color='b', normed=True, alpha=0.4, label=r'fall, $\mu_f$=%.2f, $\sigma_f$=%.2f' % (F_mean*100, F_std))
+    axes_9.legend(bbox_to_anchor=(0.8, 0.95), loc=2, prop={'size':10}, borderaxespad=0.)
 
-    boxtext2= """$\mu_r$ = %.2f, $\sigma_r = %.2f $
-    $\mu_s$ = %.2f, $\sigma_s$ = %.2f
-    $\mu_f$ = %.2f, $\sigma_f$ = %.2f"""  % (R_mean*100, R_std, S_mean*100, S_std, F_mean*100, F_std)
+
+    #boxtext2= """$\mu_r$ = %.2f, $\sigma_r = %.2f $
+    #$\mu_s$ = %.2f, $\sigma_s$ = %.2f
+    #$\mu_f$ = %.2f, $\sigma_f$ = %.2f"""  % (R_mean*100, R_std, S_mean*100, S_std, F_mean*100, F_std)
 
     #props = dict(boxstyle='round, pad=1', facecolor='white', edgecolor='black')
-    axes_9.text(0.8, 0.9, boxtext2, ha='left', va='center', multialignment="left", transform=axes_9.transAxes, bbox=props)
+    #axes_9.text(0.8, 0.9, boxtext2, ha='left', va='center', multialignment="left", transform=axes_9.transAxes, bbox=props)
     return oe_ratio
 
 def gaussian(A, x, mu, sigma):
@@ -169,13 +170,14 @@ def Ndiffhisto(Ndiff1, Ndiff2, binNum):
 
 def Nhistplot(onoff, offon, number, binNum, fig):
     plotN=241+number
-    hist_range=(-0.3, 0.3)
+    hmax=max(onoff.max(), offon.max())
+    hist_range=(-hmax, hmax)
     ax0=plt.subplot(plotN)
     nr, binss, patches0 = ax0.hist(onoff, binNum, range=hist_range, color='b',  alpha=0.3)
     nr, binss, patches01 = ax0.hist(offon, binNum, range=hist_range, color='r',  alpha=0.3)
     dF=(np.mean(onoff)-np.mean(offon))/2
     ax0.set_title("%d cycle, $\Delta I/I_{Max}$ = %.2f [%%]" % (number+2, dF*100) )
-    ax0.set_xlim(-0.3, 0.3)
+    ax0.set_xlim(-hmax, hmax)
     ax0.axvline(x=0, linewidth=2, color='k')
     #boxtext= "$\Delta I/I_{Max}$ [%%] = %.2f" % dF*100
     #plt.text(-0.2, max(nr)*0.8, boxtext, ha='left', va='center')

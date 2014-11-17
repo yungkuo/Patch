@@ -11,7 +11,7 @@ import pytest
 import numpy as np
 
 from bsearch_py import burstsearch_py
-from bsearch_c import burstsearch_c
+#from bsearch_c import burstsearch_c
 
 
 ## Burst search parameters

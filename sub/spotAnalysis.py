@@ -9,6 +9,33 @@ import numpy as np
 
 from sub import smooth
 
+def meanspotI(signal, period, threshold):
+    npoint=len(signal[0,:])
+    frame=len(signal[:,0])
+    ncycle=frame//period
+    meanI=np.zeros((ncycle*2, npoint))
+    temp=np.zeros((ncycle, 2))
+    mean_thI=[]
+    for i in range(npoint):
+        a=[]
+        ncycle=frame // period
+        rssi=signal[:,i].reshape(ncycle, period)  #rssi: reshapped spot I
+        temp[:,0]=np.mean(rssi[:,:period/2], axis=1)
+        temp[:,1]=np.mean(rssi[:,period/2:], axis=1)
+        meanI[:,i]=temp.reshape(ncycle*2)
+        for j in range(ncycle):
+            if np.min(temp[j,:]) > threshold[i]:
+                a.append(temp[j,0])
+                a.append(temp[j,1])
+        mean_thI.append(a)
+
+    return meanI, mean_thI
+
+def burstarray(fmean_th):
+    Favg = np.mean(fmean_th)
+    a=fmean_th[2:] - 2*fmean_th[1:-1] + fmean_th[:-2]
+    return a/Favg
+
 
 def multiNdF(diff):
     a=[]
@@ -128,12 +155,8 @@ def avg_period(t, signal , period, threshold):
     F[0]=sum(result[:period/2])/(period/2)
     F[1]=sum(result[period/2:])/(period/2)
     dFF=(F[1]-F[0])/F[0]*100
-    sortedI=np.zeros(len(signal))
-    for i in range(ncycle):
-        sortedI[i*(period/2) : (i+1)*(period/2)] =signal[i*period:i*period+period/2]
-    for j in range(ncycle):
-        sortedI[frame/2 + j *(period/2) : frame/2 + (j+1)*(period/2)] = signal[j*period+period/2:(j+1)*period]
-    return result, dFF, np.array(sortedI)
+
+    return result, dFF
 
 
 def threshold_avgperiod(threshold, signal, period, rp, sp, fp):
