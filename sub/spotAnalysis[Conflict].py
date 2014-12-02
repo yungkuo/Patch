@@ -16,6 +16,7 @@ def meanspotI(signal, period, threshold):
     meanI=np.zeros((ncycle*2, npoint))
     temp=np.zeros((ncycle, 2))
     mean_thI=[]
+    index=[]
     for i in range(npoint):
         a=[]
         ncycle=frame // period
@@ -27,13 +28,11 @@ def meanspotI(signal, period, threshold):
             if np.min(temp[j,:]) > threshold[i]:
                 a.append(temp[j,0])
                 a.append(temp[j,1])
-                #mean_thI.append((temp[j,:]))
+                index.append()
         mean_thI.append(a)
 
-    #bursts.append((start, stop, totalscore))
-    #dt = np.dtype([('start','int32'), ('stop','int32'), ('score', 'float64')])
-    #np.array(bursts, dtype=dt).view(np.recarray)
     return meanI, mean_thI
+
 
 
 
@@ -41,10 +40,9 @@ def multiNdF(diff):
     a=[]
     avg=[]
     NaNfreediff=[diff[i] for i in range(len(diff)) if np.isnan(diff[i]) != 1]
-    for i in range(2,50): # number is averaging window
-        temp = smooth.moving_average(NaNfreediff, i)[i+2:] # drop first few frames
-        a.append(temp)
-        avg.append(temp)
+    for i in range(2,10): # number is averaging window
+        a.append(smooth.moving_average(NaNfreediff, i)[i+2:])
+        avg.append(np.mean(a[i-2]))
     return a, avg
 
 
@@ -275,11 +273,10 @@ def filted_diff(curve, period, threshold):
             l=l+1
     F=np.array(F)
     Favg=np.mean(F)
-    Fstd=np.std(F)/Favg
     dff1=diff1/(period/2)/Favg
     dff2=diff2/(period/2)/Favg
     dff_avg=(np.nanmean(dff1)-np.nanmean(dff2))/2
-    return dff1, dff2, dff_avg, Fstd #Von/(period/2)/np.nanmax(curve), Voff/(period/2)/np.nanmax(curve)
+    return dff1, dff2, dff_avg #Von/(period/2)/np.nanmax(curve), Voff/(period/2)/np.nanmax(curve)
 
 
 def evenodd(diff):

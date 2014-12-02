@@ -28,16 +28,16 @@ SqAnalysis = True
 TriAnalysis = 0
 existROIinfo = 0    # whether or not to load ROIinfo.m file (1 = yes; 0 = no)
 method = True
-backGND_corr = True
+backGND_corr = False
 Photobleaching_corr = False  # for background
 spot_pbc = False        # for QDs
 spot_LPF = True       # LPF for spot
 binNum = 20         # Histogram bin number
-
+shift_frame = False  # control exp for
 """
 Define path and file name
 """
-filePath = 'G:/MATLAB/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
+filePath = 'G:/MATLAB/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov1/114640_take1 100Hz'
 #filePath = 'C:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122126_take3 100Hz preillu'
 #filePath = 'G:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
 filePath=filePath+'/'
@@ -74,19 +74,23 @@ Cam_fname= 'Sq_camera.bin'
 """
 Import movie & Downsampled t, V, I
 """
- # mov is [row col nframes]
 mov, nframes = ReadBinMov.ReadBinMov(filePath+MovFile, nrow, ncol)
   # the first few frames are often screwed, replace with subsequent nframes
   # !these should be excluded from analysis!
-
-mov[:4, :, :] = np.tile(mov[4, :, :], (4, 1, 1))
-mov = mov.astype('float64')
-params = [mov, SqFrameRate, MaskThresh, filePath, DAQ_Sq, SqDAQrate, method]
 
 # Extract downsampled t, V and I
 t, V, I = DAQ.DAQread(filePath+DAQ_Sq, SqFrameRate, SqDAQrate, SqFreqV, nframes)
 period = int(np.round(SqFrameRate / SqFreqV))
 assert period == SqFrameRate / SqFreqV, "SqFrameRate / SqFreqV should be int"
+
+if shift_frame:
+    mov = mov[1:-3, :, :]
+    nframes = nframes - period
+    t = t[1:-3]
+    V = V[1:-3]
+    I = I[1:-3]
+mov[:4, :, :] = np.tile(mov[4, :, :], (4, 1, 1))
+mov = mov.astype('float64')
 
 """
 Define next V is whether rising (1) or falling (-1) or staying phase (0)
@@ -133,10 +137,10 @@ plt.legend(bbox_to_anchor=(0.8, 1.2), loc=2, borderaxespad=0.)
 # bgnd corrected 3d movie
 mov_bg_cr = mov-np.tile(bg_smooth[:, np.newaxis, np.newaxis], (1,nrow,ncol))
 # bgnd corrected avg intensity
-mov_bg_cr1 = np.sum(np.sum(mov_bg_cr, axis=1), axis=1)/(ncol*nrow)
+mov_bg_cr1 = np.sum(np.sum(mov_bg_cr, axis=1), axis=1)/(ncol*nrow)   #1d intensity profile
 
 
-if backGND_corr == True:
+if backGND_corr:
     if Photobleaching_corr == True:
         mov_f=np.zeros((nframes,nrow,ncol))
         mov_pb=smooth.moving_average(mov_bg_cr1, nframes/10)   # photobleaching
@@ -164,7 +168,7 @@ if backGND_corr == True:
 else:
     mov_f=mov
 
-del mov, mov_bg_cr, mov_bg_cr1
+#del mov, mov_bg_cr, mov_bg_cr1
 """
 Define points (QDs) of interest, and their nearest peak position
 """
@@ -187,8 +191,9 @@ for n in range(npoint):
     for i in range(nframes):
         temp = point.mask(mov_f[i,:,:], pts_new[n,:])
         spot_intensity[i,n] = temp.mean()
+del mov_f
 
-if spot_pbc == True:
+if spot_pbc:
     for n in range(npoint):
         for i in range(nframes):
             temp = smooth.moving_average(spot_intensity[:,n], nframes/10)
@@ -226,24 +231,18 @@ Data Analysis for spot
 meanI, mean_thI = spotAnalysis.meanspotI(spot_intensity, period, threshold)
 mean_thI = [np.array(m) for m in mean_thI]
 
-# Unthresholded, averaged delta (F) / F
-dFF = np.zeros((npoint))
-# Thresholded, averaged delta (F) / F unit
-dFF_th = np.zeros((npoint))
-# Average Intensity over multiple cycle, unthresholded
-avg = np.zeros((npoint,period))
-# Average Intensity over multiple cycle, thresholded
-filted_avg = np.zeros((npoint,period))
-# Sort spot_intensity such that 1st phase to 0:nframes/2 and 2nd phase to
-# nframes/2 : nframes
-#sortedI = np.zeros((nframes, npoint))
-##list of delta F (I1st - I2nd) per cycle, unthresholded
-#diff=np.zeros((nframes/period,npoint))
-#list of delta F (I1st - I2nd) per cycle, thresholded
-diff_th1 = np.zeros((nframes/period,npoint))
+dFF = np.zeros((npoint)) # Unthresholded, averaged delta (F) / F
+dFF_th = np.zeros((npoint)) # Thresholded, averaged delta (F) / F unit
+avg = np.zeros((npoint,period)) # Avg Intensity over multiple cycle, unthresholded
+avg_th = np.zeros((npoint,period)) # Average Intensity over multiple cycle, thresholded
+
+#diff=np.zeros((nframes/period,npoint)) #list dF (over dV) for each cycle, unthresholded
+diff_th1 = np.zeros((nframes/period,npoint)) #list of dF for each cycle, thresholded
 #list of delta F (I2nd - I1st (next)) per cycle, thresholded
 diff_th2 = np.zeros((nframes/period,npoint))
+
 dff_avg = np.zeros(npoint)
+Fstd=np.zeros(npoint)
 rising = np.zeros((len(rp), npoint))
 staying = np.zeros((len(sp), npoint))
 falling = np.zeros((len(fp), npoint))
@@ -253,8 +252,11 @@ Fdiff = []
 selected_rsf = []
 Maxcorr1 = []
 Maxcorr2 = []
+barray=[] # input for burst search
+burstdata=[] # output of burst search
+
 for i in range(npoint):
-    filted_avg[i,:], dFF_th[i], rtemp, stemp, ftemp  = \
+    avg_th[i,:], dFF_th[i], rtemp, stemp, ftemp  = \
             spotAnalysis.threshold_avgperiod(threshold[i], spot_intensity[:,i],
                                              period, rp, sp, fp)
     Rdiff.append(rtemp)
@@ -265,22 +267,28 @@ for i in range(npoint):
                         period, threshold[i])
     #diff[:,i]=spotAnalysis.difference(spot_intensity[:,i], period)
 
-    diff_th1[:,i], diff_th2[:,i], dff_avg[i] = \
+    diff_th1[:,i], diff_th2[:,i], dff_avg[i], Fstd[i] = \
         spotAnalysis.filted_diff(spot_intensity[:,i], period, threshold[i])
 
     rising[:,i], staying[:,i], falling[:,i] = \
         spotAnalysis.rf_selective_diff(spot_intensity[:,i], rp, sp, fp)
 
-    #temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], nframes, period)
-    temp1, temp2 = spotAnalysis.norm_corr(spot_intensity[:,i], threshold[i], period)
+    temp1, temp2 = spotAnalysis.correlating_cycle(spot_intensity[:,i], nframes, period)
+    #temp1, temp2 = spotAnalysis.norm_corr(spot_intensity[:,i], threshold[i], period)
     Maxcorr1.append(temp1)
     print("%d QD 1st > 2nd has %d consequetive cycle" % (i, len(temp1)/period))
     Maxcorr2.append(temp2)
     print("%d QD 1st < 2nd has %d consequetive cycle" % (i, len(temp2)/period))
+
+    btemp=bsearch_py.burstarray(meanI[:,i])  # barray is (F[n+2]-2F[n+1]+F[n])/Favg for burst analysis
+    barray.append(btemp)
+    a=bsearch_py.burstsearch_py(np.array(btemp), 10,3)
+    burstdata.append(a)
     #print("%d'th QD" % len(temp1)/period))
     #print(len(temp2)/period)
-#figNum=multiplot.multiplot(filted_avg)
-
+#figNum=multiplot.multiplot(avg_th)
+barray = [np.array(m) for m in barray]
+burstdata = [np.array(m) for m in burstdata]
 
 
 """
@@ -294,10 +302,9 @@ Ndiff1hist = []
 Ndiff2hist = []
 avg1 = []
 avg2 = []
-barray=[]
+burstmask=np.zeros((nframes, npoint), dtype=bool)
 for i in range(npoint):
-    btemp=spotAnalysis.burstarray(mean_thI[i])  # barray is (F[n+2]-2F[n+1]+F[n])/Favg for burst analysis
-    barray.append(btemp)
+    burstmask[:,i] = bsearch_py.burstmask(nframes, period, burstdata[i])
     temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[:,i])
     temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[:,i])
     Ndiff1hist.append(temp1)
@@ -307,32 +314,29 @@ for i in range(npoint):
     #Ndiff2.append(spotAnalysis.multiNdF(diff_th2[:,i]))
     oe_ratio[i] = multiplot.spotAnalysis(refimg, pts[i,:], meanI[:,i],
                                 spot_intensity[:,i], threshold[i],
-                                diff_th1[:,i], diff_th2[:,i], filted_avg[i,:],
+                                diff_th1[:,i], diff_th2[:,i], avg_th[i,:],
                                 t, binNum, rising[:,i], staying[:,i],
                                 falling[:,i], Rdiff[i], Sdiff[i], Fdiff[i])
 
 
 
 NdF = []
+Nstd = []
 for i in range(npoint):
-    temp_dF = multiplot.Ndiffhisto(Ndiff1hist[i], Ndiff2hist[i], binNum)
+    temp_dF, temp_std = multiplot.Ndiffhisto(Ndiff1hist[i], Ndiff2hist[i], binNum)
     NdF.append(temp_dF)
-#even, odd, nhist, bins = spotAnalysis.evenodd(diff_th1)   #bins are dI/I
+    Nstd.append(temp_std)
+even, odd, nhist, bins = spotAnalysis.evenodd(diff_th1)   #bins are dI/I
 
-burstdata=[]
-for i in range(npoint):
-    a=bsearch_py.burstsearch_py(np.array(barray[i]), 10, 0.3)
-    burstdata.append(a)
-    #for j in a
-
-
-result=np.zeros((npoint, 12))
+result=np.zeros((npoint, 21))  # summarize the data for excel input
 for i in range(npoint):
     result[i, 0]=len(Maxcorr1[i])/period  # Maximum consequetive on > off cycle
     result[i, 1]=len(Maxcorr2[i])/period  # Maximum consequetive on < off cycle
-    result[i, 3:11]=NdF[i]   # dF/F,  N cycle averaged
-result[:,2]=dff_avg  # dF/F
-result[:,11]=oe_ratio  # odd/even gaussian peak
+    result[i, 4:12]=NdF[i]   # dF/F,  N cycle averaged
+    result[i, 13:21]=Nstd[i]
+result[:,3]=dff_avg  # dF/F
+result[:,12]=Fstd
+result[:,2]=oe_ratio  # odd/even gaussian peak
 
 """
 Changeable plot of selected points

@@ -11,7 +11,7 @@ import matplotlib.gridspec as gridspec
 
 
 
-def spotAnalysis(refimg, pts, meanI, intensity, threshold, diff1, diff2, 
+def spotAnalysis(refimg, pts, meanI, intensity, threshold, diff1, diff2,
                  filted_avg, t, binNum, rising, staying, falling, Rdiff, Sdiff, Fdiff):
     frame=len(intensity)
     G = gridspec.GridSpec(3, 4)
@@ -55,8 +55,8 @@ def spotAnalysis(refimg, pts, meanI, intensity, threshold, diff1, diff2,
     #plt.xlabel("Intensity, [a.u]")
 
     axes_4 = plt.subplot(G[1, 1])
-    abs_diff1=abs(diff1)
-    abs_diff2=abs(diff2)
+    abs_diff1=np.abs(diff1)
+    abs_diff2=np.abs(diff2)
     max_diff=max(np.nanmax(abs_diff1), np.nanmax(abs_diff2))
     hist_range=(-1*max_diff, max_diff)
     n, bins, patches = axes_4.hist(diff1, binNum, range=hist_range, color='b', normed=True, alpha=0.5, label='1st-2nd')
@@ -162,10 +162,11 @@ def Ndiffhisto(Ndiff1, Ndiff2, binNum):
     #b=Ndiff2[i]
 
     dF=np.zeros(8)  # 2 to 9
+    std=np.zeros(8)
     fig=plt.figure()
     for j in range(len(Ndiff1)):  # moving average 2 to 10
-        dF[j]=Nhistplot(Ndiff1[j], Ndiff2[j], j, binNum, fig)
-    return dF
+        dF[j], std[j]=Nhistplot(Ndiff1[j], Ndiff2[j], j, binNum, fig)
+    return dF, std
 
 
 def Nhistplot(onoff, offon, number, binNum, fig):
@@ -176,13 +177,14 @@ def Nhistplot(onoff, offon, number, binNum, fig):
     nr, binss, patches0 = ax0.hist(onoff, binNum, range=hist_range, color='b',  alpha=0.3)
     nr, binss, patches01 = ax0.hist(offon, binNum, range=hist_range, color='r',  alpha=0.3)
     dF=(np.mean(onoff)-np.mean(offon))/2
+    std = np.mean([np.std(onoff), np.std(offon)])
     ax0.set_title("%d cycle, $\Delta I/I_{Max}$ = %.2f [%%]" % (number+2, dF*100) )
     ax0.set_xlim(-hmax, hmax)
     ax0.axvline(x=0, linewidth=2, color='k')
     #boxtext= "$\Delta I/I_{Max}$ [%%] = %.2f" % dF*100
     #plt.text(-0.2, max(nr)*0.8, boxtext, ha='left', va='center')
 
-    return dF
+    return dF, std
 
 
 def multiplot(result):
