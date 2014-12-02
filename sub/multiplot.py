@@ -156,31 +156,36 @@ def resEOG(p, y, x):
     err = y - y_fit
     return err
 
-def Ndiffhisto(Ndiff1, Ndiff2, binNum):
+def Ndiffhisto(Ndiff1, Ndiff2, binNum, Navgcycle, plotYN=True):
     #for i in range(len(Ndiff1)):
     #a=Ndiff1[i] # number of QDs
     #b=Ndiff2[i]
-
-    dF=np.zeros(8)  # 2 to 9
-    std=np.zeros(8)
-    fig=plt.figure()
+    n = Navgcycle[1]-Navgcycle[0]
+    dF=np.zeros(n)  # 2 to 9
+    std=np.zeros(n)
+    if plotYN:
+        fig=plt.figure()
     for j in range(len(Ndiff1)):  # moving average 2 to 10
-        dF[j], std[j]=Nhistplot(Ndiff1[j], Ndiff2[j], j, binNum, fig)
+        dF[j], std[j]=Nhistplot(Ndiff1[j], Ndiff2[j], j, binNum, fig, plotYN)
     return dF, std
 
 
-def Nhistplot(onoff, offon, number, binNum, fig):
-    plotN=241+number
-    hmax=max(onoff.max(), offon.max())
-    hist_range=(-hmax, hmax)
-    ax0=plt.subplot(plotN)
-    nr, binss, patches0 = ax0.hist(onoff, binNum, range=hist_range, color='b',  alpha=0.3)
-    nr, binss, patches01 = ax0.hist(offon, binNum, range=hist_range, color='r',  alpha=0.3)
+def Nhistplot(onoff, offon, number, binNum, fig, plotYN):
+    if plotYN:
+        plotN=241+number
+        hmax=max(onoff.max(), offon.max())
+        hist_range=(-hmax, hmax)
+        ax0=plt.subplot(plotN)
+        nr, binss, patches0 = ax0.hist(onoff, binNum, range=hist_range, color='b',  alpha=0.3)
+        nr, binss, patches01 = ax0.hist(offon, binNum, range=hist_range, color='r',  alpha=0.3)
+        dF=(np.mean(onoff)-np.mean(offon))/2
+        std = np.mean([np.std(onoff), np.std(offon)])
+        ax0.set_title("%d cycle, $\Delta I/I_{Max}$ = %.2f [%%]" % (number+2, dF*100) )
+        ax0.set_xlim(-hmax, hmax)
+        ax0.axvline(x=0, linewidth=2, color='k')
     dF=(np.mean(onoff)-np.mean(offon))/2
     std = np.mean([np.std(onoff), np.std(offon)])
-    ax0.set_title("%d cycle, $\Delta I/I_{Max}$ = %.2f [%%]" % (number+2, dF*100) )
-    ax0.set_xlim(-hmax, hmax)
-    ax0.axvline(x=0, linewidth=2, color='k')
+
     #boxtext= "$\Delta I/I_{Max}$ [%%] = %.2f" % dF*100
     #plt.text(-0.2, max(nr)*0.8, boxtext, ha='left', va='center')
 

@@ -37,11 +37,11 @@ def meanspotI(signal, period, threshold):
 
 
 
-def multiNdF(diff):
+def multiNdF(diff, Navgcycle):
     a=[]
     avg=[]
     NaNfreediff=[diff[i] for i in range(len(diff)) if np.isnan(diff[i]) != 1]
-    for i in range(2,50): # number is averaging window
+    for i in range(Navgcycle[0], Navgcycle[1]): # number is averaging window
         temp = smooth.moving_average(NaNfreediff, i)[i+2:] # drop first few frames
         a.append(temp)
         avg.append(temp)

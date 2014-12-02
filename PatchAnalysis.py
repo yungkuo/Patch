@@ -34,6 +34,7 @@ spot_pbc = False        # for QDs
 spot_LPF = True       # LPF for spot
 binNum = 20         # Histogram bin number
 shift_frame = False  # control exp for
+Navgcycle= (2,50)
 """
 Define path and file name
 """
@@ -305,8 +306,8 @@ avg2 = []
 burstmask=np.zeros((nframes, npoint), dtype=bool)
 for i in range(npoint):
     burstmask[:,i] = bsearch_py.burstmask(nframes, period, burstdata[i])
-    temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[:,i])
-    temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[:,i])
+    temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[:,i], Navgcycle)
+    temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[:,i], Navgcycle)
     Ndiff1hist.append(temp1)
     Ndiff2hist.append(temp2)
     avg1.append(tavg1)
@@ -323,19 +324,21 @@ for i in range(npoint):
 NdF = []
 Nstd = []
 for i in range(npoint):
-    temp_dF, temp_std = multiplot.Ndiffhisto(Ndiff1hist[i], Ndiff2hist[i], binNum)
+    temp_dF, temp_std = multiplot.Ndiffhisto(Ndiff1hist[i], Ndiff2hist[i], binNum, Navgcycle, False)  # False: no plot
     NdF.append(temp_dF)
     Nstd.append(temp_std)
 even, odd, nhist, bins = spotAnalysis.evenodd(diff_th1)   #bins are dI/I
 
-result=np.zeros((npoint, 21))  # summarize the data for excel input
+navg = Navgcycle[1]-Navgcycle[0]
+result=np.zeros((npoint, 5 + 2*navg))  # summarize the data for excel input
+
 for i in range(npoint):
     result[i, 0]=len(Maxcorr1[i])/period  # Maximum consequetive on > off cycle
     result[i, 1]=len(Maxcorr2[i])/period  # Maximum consequetive on < off cycle
-    result[i, 4:12]=NdF[i]   # dF/F,  N cycle averaged
-    result[i, 13:21]=Nstd[i]
+    result[i, 4:navg+4]=NdF[i]   # dF/F,  N cycle averaged
+    result[i, navg+5:5+2*navg]=Nstd[i]
 result[:,3]=dff_avg  # dF/F
-result[:,12]=Fstd
+result[:,navg+4]=Fstd
 result[:,2]=oe_ratio  # odd/even gaussian peak
 
 """
