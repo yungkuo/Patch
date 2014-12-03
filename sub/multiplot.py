@@ -164,13 +164,13 @@ def Ndiffhisto(Ndiff1, Ndiff2, binNum, Navgcycle, plotYN=True):
     dF=np.zeros(n)  # 2 to 9
     std=np.zeros(n)
     if plotYN:
-        fig=plt.figure()
+        plt.figure()
     for j in range(len(Ndiff1)):  # moving average 2 to 10
-        dF[j], std[j]=Nhistplot(Ndiff1[j], Ndiff2[j], j, binNum, fig, plotYN)
+        dF[j], std[j]=Nhistplot(Ndiff1[j], Ndiff2[j], j, binNum, plotYN)
     return dF, std
 
 
-def Nhistplot(onoff, offon, number, binNum, fig, plotYN):
+def Nhistplot(onoff, offon, number, binNum, plotYN):
     if plotYN:
         plotN=241+number
         hmax=max(onoff.max(), offon.max())

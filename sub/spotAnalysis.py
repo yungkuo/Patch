@@ -13,27 +13,38 @@ def meanspotI(signal, period, threshold):
     npoint=len(signal[0,:])
     frame=len(signal[:,0])
     ncycle=frame//period
-    meanI=np.zeros((ncycle*2, npoint))
+    meanI=np.zeros((ncycle*2, npoint))    
     temp=np.zeros((ncycle, 2))
     mean_thI=[]
+    mean_thI2=[]
     for i in range(npoint):
         a=[]
+        b=[]
         ncycle=frame // period
         rssi=signal[:,i].reshape(ncycle, period)  #rssi: reshapped spot I
-        temp[:,0]=np.mean(rssi[:,:period/2], axis=1)
-        temp[:,1]=np.mean(rssi[:,period/2:], axis=1)
+        temp[:,0]=np.mean(rssi[:,:period/2], axis=1) # Von 
+        temp[:,1]=np.mean(rssi[:,period/2:], axis=1) # Voff
         meanI[:,i]=temp.reshape(ncycle*2)
-        for j in range(ncycle):
+        shift = meanI[1:-1,i]   # one frame shift
+        
+        for j in range(ncycle-1):
             if np.min(temp[j,:]) > threshold[i]:
                 a.append(temp[j,0])
                 a.append(temp[j,1])
                 #mean_thI.append((temp[j,:]))
+            if np.min(shift[j*2: (j+1)*2]) > threshold[i]:
+                b.append(shift[j*2])
+                b.append(shift[j*2+1])
+                
+        
         mean_thI.append(a)
-
+        mean_thI2.append(b)
+    
+    
     #bursts.append((start, stop, totalscore))
     #dt = np.dtype([('start','int32'), ('stop','int32'), ('score', 'float64')])
     #np.array(bursts, dtype=dt).view(np.recarray)
-    return meanI, mean_thI
+    return meanI, mean_thI, mean_thI2
 
 
 
@@ -44,7 +55,7 @@ def multiNdF(diff, Navgcycle):
     for i in range(Navgcycle[0], Navgcycle[1]): # number is averaging window
         temp = smooth.moving_average(NaNfreediff, i)[i+2:] # drop first few frames
         a.append(temp)
-        avg.append(temp)
+        avg.append(np.mean(temp))
     return a, avg
 
 
@@ -246,53 +257,70 @@ def difference(curve, period):
     return diff
 
 
-def filted_diff(curve, period, threshold):
-    nframe=len(curve)
-    ncycle=nframe// period
-    diff1=np.ones(ncycle)
-    diff1[:]=np.NAN
-    diff2=np.ones(ncycle)
-    diff2[:]=np.NAN
-    #Von=np.ones(ncycle)
-    #Von[:]=np.NAN
-    #Voff=np.ones(ncycle)
-    #Voff[:]=np.NAN
-    k=0
-    l=0
-    F=[]
-    for i in range(ncycle):
-        if threshold <= min(curve[i*period : (i+1)*period]):
-            diff1[k]=sum(curve[i*period : i*period+period/2])-sum(curve[i*period+period/2 : (i+1)*period])
-            F.append(curve[i*period:(i+1)*period])
-            #Von[k]=sum(curve[i*period : i*period+period/2])
-            #Voff[k]=sum(curve[i*period+period/2 : (i+1)*period])
-            k=k+1
-    for i in range(ncycle-1):
-        if threshold <= min(curve[i*period+(period/2) : (i+1)*period+(period/2)]):
-            diff2[l]=sum(curve[i*period+(period/2) : (i+1)*period])-sum(curve[(i+1)*period : (i+1)*period+(period/2)])
-            #Von[k]=sum(curve[i*period : i*period+period/2])
-            #Voff[k]=sum(curve[i*period+period/2 : (i+1)*period])
-            l=l+1
-    F=np.array(F)
-    Favg=np.mean(F)
-    Fstd=np.std(F)/Favg
-    dff1=diff1/(period/2)/Favg
-    dff2=diff2/(period/2)/Favg
-    dff_avg=(np.nanmean(dff1)-np.nanmean(dff2))/2
+def filted_diff(curve, period, threshold, mean_thI, mean_thI2, averaging = False):
+    if averaging == False:
+        nframe=len(curve)
+        ncycle=nframe// period
+        diff1=np.ones(ncycle)
+        diff1[:]=np.NAN
+        diff2=np.ones(ncycle)
+        diff2[:]=np.NAN
+        #Von=np.ones(ncycle)
+        #Von[:]=np.NAN
+        #Voff=np.ones(ncycle)
+        #Voff[:]=np.NAN
+        k=0
+        l=0
+        F=[]
+        for i in range(ncycle):
+            if threshold <= min(curve[i*period : (i+1)*period]):
+                diff1[k]=sum(curve[i*period : i*period+period/2])-sum(curve[i*period+period/2 : (i+1)*period])
+                F.append(curve[i*period:(i+1)*period])
+                #Von[k]=sum(curve[i*period : i*period+period/2])
+                #Voff[k]=sum(curve[i*period+period/2 : (i+1)*period])
+                k=k+1
+        for i in range(ncycle-1):
+            if threshold <= min(curve[i*period+(period/2) : (i+1)*period+(period/2)]):
+                diff2[l]=sum(curve[i*period+(period/2) : (i+1)*period])-sum(curve[(i+1)*period : (i+1)*period+(period/2)])
+                #Von[k]=sum(curve[i*period : i*period+period/2])
+                #Voff[k]=sum(curve[i*period+period/2 : (i+1)*period])
+                l=l+1
+            
+        F=np.array(F)
+        Favg=np.mean(F)
+        Fstd=np.std(F)/Favg
+        dff1=diff1/(period/2)/Favg
+        dff2=diff2/(period/2)/Favg
+        dff_avg=(np.nanmean(dff1)-np.nanmean(dff2))/2
+    else:
+        ncycle = len(mean_thI)/2
+        rsmeanI = mean_thI.reshape(ncycle, 2)
+        diff1 = rsmeanI[:,0] - rsmeanI[:,1]
+        
+        ncycle = len(mean_thI2)/2
+        rsmeanI2 = mean_thI2.reshape(ncycle,2)
+        diff2 = rsmeanI2[:,0] - rsmeanI2[:,1]
+        
+        Favg = np.mean(mean_thI)
+        Fstd = np.std(mean_thI)/Favg
+        dff1 = diff1/Favg
+        dff2 = diff2/Favg
+        dff_avg = (np.mean(diff1) - np.mean(diff2))/2
+                    
     return dff1, dff2, dff_avg, Fstd #Von/(period/2)/np.nanmax(curve), Voff/(period/2)/np.nanmax(curve)
 
 
 def evenodd(diff):
-    npoint=len(diff[0,:])
+    npoint=len(diff)
     binsize=30
     n=np.zeros((binsize, npoint))
     bins=np.zeros((binsize+1, npoint))
     even=np.zeros((binsize, npoint))
     odd=np.zeros((binsize, npoint))
     for i in range(npoint):
-        abs_diff=abs(diff[:,i])
+        abs_diff=abs(diff[i])
         hist_range=(-1*np.nanmax(abs_diff), np.nanmax(abs_diff))
-        n[:,i], bins[:,i]  = np.histogram(diff[:,i], binsize, range=hist_range)
+        n[:,i], bins[:,i]  = np.histogram(diff[i], binsize, range=hist_range)
         even[:,i]=(n[:,i]+n[::-1,i])/2   # make an even function
         odd[:,i]=(n[:,i]-n[::-1,i])/2    # make an odd function
     return even, odd, n, bins

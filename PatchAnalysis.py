@@ -25,22 +25,20 @@ Control Pannel
 MaskThresh = 0.05   # we will throw away some pixels that are too dim, this is
                     # the fraction of the peak intensity below which to discard
 SqAnalysis = True
-TriAnalysis = 0
-existROIinfo = 0    # whether or not to load ROIinfo.m file (1 = yes; 0 = no)
-method = True
-backGND_corr = False
+TriAnalysis = False
+backGND_corr = True
 Photobleaching_corr = False  # for background
 spot_pbc = False        # for QDs
 spot_LPF = True       # LPF for spot
 binNum = 20         # Histogram bin number
-shift_frame = False  # control exp for
-Navgcycle= (2,50)
+shift_frame = False  # control exp for N cycle averaging
+Navgcycle= (2,10)
 """
 Define path and file name
 """
-filePath = 'G:/MATLAB/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov1/114640_take1 100Hz'
+#filePath = 'G:/MATLAB/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov1/114640_take1 100Hz'
 #filePath = 'C:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122126_take3 100Hz preillu'
-#filePath = 'G:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
+filePath = 'G:/patch/2014-08-11 HEK nanoparticles/nanorods 630/fov2 - good/122055_take2 100Hz'
 filePath=filePath+'/'
 filePath=filePath.replace('\\','/')
 
@@ -84,7 +82,7 @@ t, V, I = DAQ.DAQread(filePath+DAQ_Sq, SqFrameRate, SqDAQrate, SqFreqV, nframes)
 period = int(np.round(SqFrameRate / SqFreqV))
 assert period == SqFrameRate / SqFreqV, "SqFrameRate / SqFreqV should be int"
 
-if shift_frame:
+if shift_frame:  # shift by one frame
     mov = mov[1:-3, :, :]
     nframes = nframes - period
     t = t[1:-3]
@@ -169,7 +167,7 @@ if backGND_corr:
 else:
     mov_f=mov
 
-#del mov, mov_bg_cr, mov_bg_cr1
+del mov, mov_bg_cr, mov_bg_cr1
 """
 Define points (QDs) of interest, and their nearest peak position
 """
@@ -229,8 +227,10 @@ for i in range(npoint):
 """
 Data Analysis for spot
 """
-meanI, mean_thI = spotAnalysis.meanspotI(spot_intensity, period, threshold)
+meanI, mean_thI, mean_thI2 = spotAnalysis.meanspotI(spot_intensity, period, threshold)
 mean_thI = [np.array(m) for m in mean_thI]
+mean_thI2 = [np.array(m) for m in mean_thI2]
+
 
 dFF = np.zeros((npoint)) # Unthresholded, averaged delta (F) / F
 dFF_th = np.zeros((npoint)) # Thresholded, averaged delta (F) / F unit
@@ -238,9 +238,9 @@ avg = np.zeros((npoint,period)) # Avg Intensity over multiple cycle, unthreshold
 avg_th = np.zeros((npoint,period)) # Average Intensity over multiple cycle, thresholded
 
 #diff=np.zeros((nframes/period,npoint)) #list dF (over dV) for each cycle, unthresholded
-diff_th1 = np.zeros((nframes/period,npoint)) #list of dF for each cycle, thresholded
+diff_th1 = []  #list of dF for each cycle, thresholded
 #list of delta F (I2nd - I1st (next)) per cycle, thresholded
-diff_th2 = np.zeros((nframes/period,npoint))
+diff_th2 = []
 
 dff_avg = np.zeros(npoint)
 Fstd=np.zeros(npoint)
@@ -268,8 +268,10 @@ for i in range(npoint):
                         period, threshold[i])
     #diff[:,i]=spotAnalysis.difference(spot_intensity[:,i], period)
 
-    diff_th1[:,i], diff_th2[:,i], dff_avg[i], Fstd[i] = \
-        spotAnalysis.filted_diff(spot_intensity[:,i], period, threshold[i])
+    diff1_temp, diff2_temp, dff_avg[i], Fstd[i] = \
+        spotAnalysis.filted_diff(spot_intensity[:,i], period, threshold[i], mean_thI[i], mean_thI2[i], averaging = True)
+    diff_th1.append(diff1_temp)
+    diff_th2.append(diff2_temp)
 
     rising[:,i], staying[:,i], falling[:,i] = \
         spotAnalysis.rf_selective_diff(spot_intensity[:,i], rp, sp, fp)
@@ -306,8 +308,8 @@ avg2 = []
 burstmask=np.zeros((nframes, npoint), dtype=bool)
 for i in range(npoint):
     burstmask[:,i] = bsearch_py.burstmask(nframes, period, burstdata[i])
-    temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[:,i], Navgcycle)
-    temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[:,i], Navgcycle)
+    temp1, tavg1 = spotAnalysis.multiNdF(diff_th1[i], Navgcycle)
+    temp2, tavg2 = spotAnalysis.multiNdF(diff_th2[i], Navgcycle)
     Ndiff1hist.append(temp1)
     Ndiff2hist.append(temp2)
     avg1.append(tavg1)
@@ -315,7 +317,7 @@ for i in range(npoint):
     #Ndiff2.append(spotAnalysis.multiNdF(diff_th2[:,i]))
     oe_ratio[i] = multiplot.spotAnalysis(refimg, pts[i,:], meanI[:,i],
                                 spot_intensity[:,i], threshold[i],
-                                diff_th1[:,i], diff_th2[:,i], avg_th[i,:],
+                                diff_th1[i], diff_th2[i], avg_th[i,:],
                                 t, binNum, rising[:,i], staying[:,i],
                                 falling[:,i], Rdiff[i], Sdiff[i], Fdiff[i])
 
@@ -324,7 +326,7 @@ for i in range(npoint):
 NdF = []
 Nstd = []
 for i in range(npoint):
-    temp_dF, temp_std = multiplot.Ndiffhisto(Ndiff1hist[i], Ndiff2hist[i], binNum, Navgcycle, False)  # False: no plot
+    temp_dF, temp_std = multiplot.Ndiffhisto(Ndiff1hist[i], Ndiff2hist[i], binNum, Navgcycle, True)  # False: no plot
     NdF.append(temp_dF)
     Nstd.append(temp_std)
 even, odd, nhist, bins = spotAnalysis.evenodd(diff_th1)   #bins are dI/I
